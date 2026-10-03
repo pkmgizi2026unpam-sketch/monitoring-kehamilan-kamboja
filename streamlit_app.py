@@ -585,8 +585,8 @@ def build_report_pdf(analysis_data, generated_at):
         ("VALIGN", (0, 0), (-1, -1), "TOP"), ("PADDING", (0, 0), (-1, -1), 4),
     ]))
     elements.append(factor_table)
-    disease_text = ", ".join(f"{name} ({count} kasus)" for name, count in disease_values.items()) or "Tidak ada data penyakit yang tardaftar"
-    allergy_text = ", ".join(f"{name} ({count} kasus)" for name, count in allergy_values.items()) or "Tidak ada data alergi yang tardaftar"
+    disease_text = ", ".join(f"{name} ({count} kasus)" for name, count in disease_values.items()) or "Tidak ada data penyakit yang tercatat"
+    allergy_text = ", ".join(f"{name} ({count} kasus)" for name, count in allergy_values.items()) or "Tidak ada data alergi yang tercatat"
     elements.extend([
         paragraph(f"Riwayat Penyakit Terbanyak: {disease_text}."),
         paragraph(f"Riwayat Alergi Terbanyak: {allergy_text}."),
@@ -1069,23 +1069,23 @@ if menu == "📊 Dashboard Monitoring":
             ):
                 st.session_state["selected_risk_category"] = category
 
-    selected_category = st.session_state.get("selected_risk_category")
-    if selected_category:
-        selected_rows = report_table.loc[
-            filtered[kategori_col].eq(selected_category),
-            ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
-        ]
-        st.subheader(
-            f"Daftar ibu kategori {selected_category} "
-            f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
-        )
-        if selected_rows.empty:
-            st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
-        else:
-            st.dataframe(selected_rows, hide_index=True, width="stretch")
-        if st.button("Tutup daftar kategori", key="close_category_names"):
-            del st.session_state["selected_risk_category"]
-            st.rerun()
+selected_category = st.session_state.get("selected_risk_category")
+if selected_category:
+    selected_rows = report_table.loc[
+        filtered[kategori_col].eq(selected_category),
+        ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
+    ]
+    st.subheader(
+        f"Daftar ibu kategori {selected_category} "
+        f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
+    )
+    if selected_rows.empty:
+        st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
+    else:
+        st.dataframe(selected_rows, hide_index=True, width="stretch")
+    if st.button("Tutup daftar kategori", key="close_category_names"):
+        del st.session_state["selected_risk_category"]
+        st.rerun()
 
     if urgent_bp:
         st.error(
@@ -1406,3 +1406,14 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 mime="text/csv",
                 use_container_width=True
             )
+
+            # --- MENU HAPUS / RESET DATA EVALUASI ---
+            st.markdown("---")
+            with st.expander("🗑️ Pengaturan / Hapus Data Evaluasi"):
+                st.caption("Gunakan menu ini jika ingin membersihkan data percobaan sebelum kegiatan resmi dimulai.")
+                confirm_del = st.checkbox("Saya yakin ingin mengosongkan / menghapus semua catatan evaluasi di atas.")
+                if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
+                    if EVAL_FILE.exists():
+                        EVAL_FILE.unlink()
+                    st.success("Seluruh data evaluasi berhasil dihapus.")
+                    st.rerun()
