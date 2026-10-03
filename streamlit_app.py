@@ -60,17 +60,17 @@ SOURCE_COLUMN_ALIASES = {
     "preeklamsia_berat": "preeklamsia_berat_eklamsia",
 }
 
-# --- STYLING CSS KONTRAS TINGGI & KALENDER PUTIH TERANG ---
+# --- STYLING CSS KONTRAS TINGGI: OVERRIDE TOTAL DARK MODE & BASEWEB ---
 st.markdown(
     """
     <style>
-    /* 1. Latar belakang utama dan teks global */
-    .stApp {
+    /* 1. Paksa Latar Belakang & Teks Global */
+    html, body, .stApp, [data-testid="stAppViewContainer"] {
         background-color: #f8fafc !important;
         color: #1e293b !important;
     }
 
-    /* 2. Semua Judul dan Header (Hijau Medis) */
+    /* 2. Semua Header dan Judul */
     h1, h2, h3, h4, h5, h6,
     .stApp h1, .stApp h2, .stApp h3, .stApp h4,
     [data-testid="stHeadingWithActionElements"] h1,
@@ -80,107 +80,114 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* 3. Teks reguler, paragraf, dan markdown */
     p, span, div, .stMarkdown {
         color: #1e293b !important;
     }
 
-    /* 4. Teks keterangan kecil (caption) */
     .stCaption, [data-testid="stCaptionContainer"] p, small {
         color: #475569 !important;
         font-size: 0.88rem !important;
     }
 
-    /* 5. Label input dan form (Tegas & Jelas) */
     [data-testid="stWidgetLabel"] label,
     [data-testid="stWidgetLabel"] p {
         color: #0f172a !important;
         font-weight: 600 !important;
     }
 
-    /* 6. Form input teks standar */
-    [data-testid="stTextInput"] input {
+    /* 3. INPUT FORM & KOTAK TANGGAL: HAPUS WARNA GELAP */
+    input, textarea,
+    [data-testid="stTextInput"] input,
+    [data-testid="stDateInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-baseweb="input"],
+    [data-baseweb="base-input"] {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
     }
 
-    /* 7. KOTAK INPUT TANGGAL (TANGGAL LAHIR & HPL) - TEKS PUTIH JELAS */
+    [data-testid="stDateInput"] div,
     [data-testid="stDateInput"] input {
-        color: #ffffff !important;
-        font-weight: 600 !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
     }
 
-    /* 8. POPUP KALENDER: SEMUA ANGKA & TEKS DIUBAH MENJADI PUTIH TERANG */
+    /* 4. POPUP KALENDER & MENU DROPDOWN TAHUN */
     div[data-baseweb="popover"],
-    div[data-baseweb="calendar"] {
-        background-color: #1e293b !important;
+    div[data-baseweb="calendar"],
+    div[role="dialog"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
     }
+
+    /* Paksa teks bulan, tahun, dan hari di kalender berwarna hitam pekat */
     div[data-baseweb="calendar"] *,
     div[data-baseweb="calendar"] button,
     div[data-baseweb="calendar"] span,
-    div[data-baseweb="calendar"] select {
-        color: #ffffff !important;
+    div[data-baseweb="calendar"] select,
+    div[data-baseweb="popover"] * {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
     }
 
-    /* KHUSUS SELURUH ANGKA TANGGAL DI KALENDER (1, 2, 3 ... 31) */
+    /* Kotak angka tanggal reguler (1 - 31) */
     div[data-baseweb="calendar"] [role="gridcell"],
-    div[data-baseweb="calendar"] [role="gridcell"] *,
-    div[data-baseweb="calendar"] [role="grid"] [role="row"] *,
-    div[data-baseweb="popover"] [role="gridcell"],
-    div[data-baseweb="popover"] [role="gridcell"] * {
-        color: #ffffff !important;
-        opacity: 1 !important;
-        font-weight: 700 !important;
-        font-size: 0.95rem !important;
-    }
-
-    /* Tanggal di luar bulan berjalan (sedikit redup tapi tetap putih terbaca) */
-    div[data-baseweb="calendar"] [aria-disabled="true"],
-    div[data-baseweb="calendar"] [aria-disabled="true"] * {
-        color: #94a3b8 !important;
-        opacity: 0.6 !important;
-    }
-
-    /* Efek saat tanggal disentuh kursor (Hover) */
-    div[data-baseweb="calendar"] [role="gridcell"]:hover,
-    div[data-baseweb="calendar"] [role="gridcell"]:hover * {
-        background-color: #059669 !important;
-        color: #ffffff !important;
-        border-radius: 6px !important;
-    }
-
-    /* Tanggal yang sedang aktif / terpilih */
-    div[data-baseweb="calendar"] [aria-selected="true"],
-    div[data-baseweb="calendar"] [aria-selected="true"] * {
-        background-color: #10b981 !important;
-        color: #ffffff !important;
-        font-weight: 800 !important;
-        border-radius: 6px !important;
-    }
-
-    /* 9. BADGE KATEGORI KSPR & WILAYAH (GANTI MERAH JADI HIJAU EMERALD ELEGAN) */
-    [data-baseweb="tag"] {
-        background-color: #065f46 !important;
-        border: 1px solid #047857 !important;
-        border-radius: 6px !important;
-        padding: 4px 8px !important;
-    }
-    [data-baseweb="tag"] span,
-    [data-baseweb="tag"] div,
-    [data-baseweb="tag"] * {
-        color: #ffffff !important;
+    div[data-baseweb="calendar"] [role="gridcell"] div {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
         font-weight: 600 !important;
     }
-    [data-baseweb="tag"] svg,
-    [data-baseweb="tag"] [role="presentation"] {
-        fill: #ffffff !important;
-        color: #ffffff !important;
+
+    /* Efek hover pada tanggal */
+    div[data-baseweb="calendar"] [role="gridcell"]:hover,
+    div[data-baseweb="calendar"] [role="gridcell"]:hover * {
+        background-color: #ecfdf5 !important;
+        color: #064e3b !important;
     }
 
-    /* 10. SLIDER USIA KEHAMILAN */
+    /* Tanggal yang sedang dipilih / aktif */
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] [aria-selected="true"] * {
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-radius: 50% !important;
+    }
+
+    /* Menu daftar tahun yang terbuka (2017...2026) */
+    ul[role="listbox"],
+    ul[role="listbox"] li,
+    div[role="listbox"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    ul[role="listbox"] li:hover {
+        background-color: #ecfdf5 !important;
+        color: #064e3b !important;
+    }
+
+    /* 5. GANTI WARNA MERAH: BADGE KATEGORI KSPR & WILAYAH */
+    [data-baseweb="tag"],
+    span[data-baseweb="tag"] {
+        background-color: #ecfdf5 !important;
+        border: 1px solid #a7f3d0 !important;
+        border-radius: 6px !important;
+        padding: 2px 6px !important;
+    }
+    [data-baseweb="tag"] *,
+    span[data-baseweb="tag"] * {
+        background-color: transparent !important;
+        color: #064e3b !important;
+        font-weight: 600 !important;
+        fill: #064e3b !important;
+    }
+
+    /* 6. SLIDER & TOMBOL ANGKA (+ / -) */
     [data-testid="stSlider"] div[role="slider"] {
         background-color: #059669 !important;
         border-color: #059669 !important;
@@ -189,8 +196,13 @@ st.markdown(
         color: #064e3b !important;
         font-weight: 700 !important;
     }
+    [data-testid="stNumberInput"] button {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
 
-    /* 11. Kartu Metrik Statistik */
+    /* 7. Kartu Metrik */
     [data-testid="stMetric"] {
         background-color: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
@@ -206,34 +218,8 @@ st.markdown(
         color: #064e3b !important;
         font-weight: 800 !important;
     }
-    [data-testid="stMetricDelta"] div, [data-testid="stMetricDelta"] {
-        color: #64748b !important;
-    }
 
-    /* 12. Kotak Peringatan & Alert */
-    [data-testid="stAlert"] {
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 8px !important;
-    }
-    [data-testid="stAlert"] * {
-        color: #1e293b !important;
-        font-weight: 500 !important;
-    }
-
-    /* 13. Sidebar Navigasi */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e2e8f0 !important;
-    }
-    [data-testid="stSidebar"] * {
-        color: #1e293b !important;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #064e3b !important;
-    }
-
-    /* 14. Tombol Utama */
+    /* 8. Tombol Aksi */
     button[kind="primary"] {
         background-color: #059669 !important;
         color: #ffffff !important;
@@ -247,10 +233,6 @@ st.markdown(
         border: 1px solid #cbd5e1 !important;
         font-weight: 600 !important;
         border-radius: 6px !important;
-    }
-    button[kind="secondary"]:hover {
-        background-color: #f1f5f9 !important;
-        border-color: #94a3b8 !important;
     }
     </style>
     """,
