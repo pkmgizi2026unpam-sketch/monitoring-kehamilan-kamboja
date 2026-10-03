@@ -60,6 +60,131 @@ SOURCE_COLUMN_ALIASES = {
     "preeklamsia_berat": "preeklamsia_berat_eklamsia",
 }
 
+# --- STYLING CSS KONTRAST TINGGI (KOMPATIBEL DENGAN DARK & LIGHT MODE) ---
+st.markdown(
+    """
+    <style>
+    /* 1. Background utama dan teks global */
+    .stApp {
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
+    }
+
+    /* 2. Semua judul dan header (Hijau Tua Medis) */
+    h1, h2, h3, h4, h5, h6,
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+    [data-testid="stHeadingWithActionElements"] h1,
+    [data-testid="stHeadingWithActionElements"] h2,
+    [data-testid="stHeadingWithActionElements"] h3 {
+        color: #064e3b !important;
+        font-weight: 700 !important;
+    }
+
+    /* 3. Teks reguler, paragraf, dan markdown */
+    p, span, div, .stMarkdown {
+        color: #1e293b !important;
+    }
+
+    /* 4. Teks keterangan kecil (caption) */
+    .stCaption, [data-testid="stCaptionContainer"] p, small {
+        color: #475569 !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* 5. Label input dan form (Tegas dan tebal) */
+    [data-testid="stWidgetLabel"] label,
+    [data-testid="stWidgetLabel"] p {
+        color: #0f172a !important;
+        font-weight: 600 !important;
+    }
+
+    /* 6. Form input, textarea, dan dropdown (selectbox) */
+    input, textarea, [data-baseweb="select"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+    }
+    [data-baseweb="select"] * {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    div[role="listbox"], ul[role="listbox"], li[role="option"] {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    li[role="option"]:hover, li[aria-selected="true"] {
+        background-color: #f1f5f9 !important;
+        color: #064e3b !important;
+    }
+
+    /* 7. Kartu metrik statistik */
+    [data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        padding: 14px 16px !important;
+    }
+    [data-testid="stMetricLabel"] p, [data-testid="stMetricLabel"] {
+        color: #475569 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stMetricValue"] div, [data-testid="stMetricValue"] {
+        color: #064e3b !important;
+        font-weight: 800 !important;
+    }
+    [data-testid="stMetricDelta"] div, [data-testid="stMetricDelta"] {
+        color: #64748b !important;
+    }
+
+    /* 8. Kotak notifikasi peringatan (Alert) */
+    [data-testid="stAlert"] {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stAlert"] * {
+        color: #1e293b !important;
+        font-weight: 500 !important;
+    }
+
+    /* 9. Sidebar samping */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #1e293b !important;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #064e3b !important;
+    }
+
+    /* 10. Tombol aksi */
+    button[kind="primary"] {
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+    }
+    button[kind="secondary"] {
+        background-color: #ffffff !important;
+        color: #064e3b !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #f1f5f9 !important;
+        border-color: #94a3b8 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 def get_auth_config():
     try:
@@ -598,32 +723,6 @@ def render_patient_fields(prefix, patient=None):
 
 
 df = load_data()
-
-st.markdown(
-    """
-    <style>
-    .stApp { background: #f4f6f2; }
-    [data-testid="stHeader"] { background: rgba(244, 246, 242, 0.92); }
-    [data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #dce3dc;
-        border-radius: 6px;
-        padding: 14px 16px;
-    }
-    [data-testid="stMetricLabel"] { color: #52635a; }
-    [data-testid="stMetricValue"] { color: #183e35; }
-    div[data-testid="stDataFrame"] { border: 1px solid #dce3dc; }
-    @media (max-width: 768px) {
-        [data-testid="stAppViewContainer"] .main .block-container {
-            padding: 1rem 0.75rem 2rem;
-        }
-        [data-testid="stMetric"] { padding: 10px 12px; }
-        [data-testid="stMetricValue"] { font-size: 1.35rem; }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 with st.sidebar:
     st.markdown("### POSYANDU KAMBOJA")
