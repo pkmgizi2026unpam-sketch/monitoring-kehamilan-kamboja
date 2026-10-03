@@ -60,17 +60,17 @@ SOURCE_COLUMN_ALIASES = {
     "preeklamsia_berat": "preeklamsia_berat_eklamsia",
 }
 
-# --- STYLING CSS KONTRAS TINGGI (KOMPATIBEL DENGAN DARK & LIGHT MODE) ---
+# --- STYLING CSS MEDIS: BERSIH, KONTRAS, DAN HARMONIS ---
 st.markdown(
     """
     <style>
-    /* 1. Background utama dan teks global */
+    /* 1. Latar belakang utama dan teks global */
     .stApp {
         background-color: #f8fafc !important;
         color: #1e293b !important;
     }
 
-    /* 2. Semua judul dan header (Hijau Tua Medis) */
+    /* 2. Semua Judul dan Header (Hijau Medis Posyandu) */
     h1, h2, h3, h4, h5, h6,
     .stApp h1, .stApp h2, .stApp h3, .stApp h4,
     [data-testid="stHeadingWithActionElements"] h1,
@@ -80,7 +80,7 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* 3. Teks reguler, paragraf, dan markdown */
+    /* 3. Teks reguler, paragraf, dan konten markdown */
     p, span, div, .stMarkdown {
         color: #1e293b !important;
     }
@@ -91,17 +91,40 @@ st.markdown(
         font-size: 0.88rem !important;
     }
 
-    /* 5. Label input dan form (Tegas dan tebal) */
+    /* 5. Label input dan form (Tegas & Jelas) */
     [data-testid="stWidgetLabel"] label,
     [data-testid="stWidgetLabel"] p {
         color: #0f172a !important;
         font-weight: 600 !important;
     }
 
-    /* 6. Form input, textarea, dan dropdown (selectbox) */
-    input, textarea, [data-baseweb="select"] {
+    /* 6. Kotak Input Teks, Tanggal, dan Number Input */
+    input, textarea,
+    [data-baseweb="base-input"],
+    [data-testid="stTextInput"] input,
+    [data-testid="stDateInput"] input,
+    [data-testid="stNumberInput"] input {
         background-color: #ffffff !important;
         color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+    }
+
+    /* Wadah container datepicker agar tidak gelap */
+    [data-testid="stDateInput"] div[data-baseweb="input"],
+    [data-baseweb="input"] {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+    }
+    [data-testid="stDateInput"] div[data-baseweb="input"] * {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    /* 7. Dropdown Selectbox & Menu Pilihan */
+    [data-baseweb="select"] {
+        background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
     }
@@ -114,11 +137,107 @@ st.markdown(
         color: #0f172a !important;
     }
     li[role="option"]:hover, li[aria-selected="true"] {
-        background-color: #f1f5f9 !important;
+        background-color: #ecfdf5 !important;
         color: #064e3b !important;
     }
 
-    /* 7. Kartu metrik statistik */
+    /* 8. POPUP KALENDER (DATEPICKER) - Putih Elegan & Bersih */
+    [data-baseweb="popover"],
+    [data-baseweb="calendar"],
+    div[data-baseweb="calendar"],
+    div[data-baseweb="calendar"] * {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    /* Tombol Navigasi Panah & Bulan pada Kalender */
+    [data-baseweb="calendar"] button {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: none !important;
+    }
+    [data-baseweb="calendar"] button:hover {
+        background-color: #f1f5f9 !important;
+        color: #064e3b !important;
+    }
+    /* Nama Hari (S M T W T F S) */
+    [data-baseweb="calendar"] [role="grid"] [role="row"] * {
+        color: #475569 !important;
+        font-weight: 600 !important;
+    }
+    /* Kotak Tanggal / Angka Hari */
+    [data-baseweb="calendar"] [role="gridcell"] {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border-radius: 6px !important;
+    }
+    [data-baseweb="calendar"] [role="gridcell"]:hover {
+        background-color: #ecfdf5 !important;
+        color: #064e3b !important;
+        cursor: pointer;
+    }
+    /* Tanggal yang Sedang Terpilih (Hijau Zamrud Medis) */
+    [data-baseweb="calendar"] [aria-selected="true"] {
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+    }
+
+    /* 9. BADGE MULTISELECT (Kategori KSPR & Wilayah) - Soft Mint Medis */
+    [data-baseweb="tag"] {
+        background-color: #ecfdf5 !important;
+        border: 1px solid #a7f3d0 !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+    }
+    [data-baseweb="tag"] span,
+    [data-baseweb="tag"] div,
+    [data-baseweb="tag"] * {
+        background-color: transparent !important;
+        color: #064e3b !important;
+        font-weight: 600 !important;
+    }
+    /* Ikon silang (x) penutup badge */
+    [data-baseweb="tag"] [role="presentation"],
+    [data-baseweb="tag"] svg {
+        fill: #064e3b !important;
+        color: #064e3b !important;
+    }
+    [data-baseweb="tag"]:hover {
+        background-color: #d1fae5 !important;
+        border-color: #6ee7b7 !important;
+    }
+
+    /* 10. TOMBOL PLUS (+) & MINUS (-) PADA KOLOM ANGKA */
+    [data-testid="stNumberInput"] button {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+    [data-testid="stNumberInput"] button:hover {
+        background-color: #e2e8f0 !important;
+        color: #064e3b !important;
+    }
+    [data-testid="stNumberInput"] button svg {
+        fill: #0f172a !important;
+        stroke: #0f172a !important;
+    }
+
+    /* 11. SLIDER USIA KEHAMILAN (Ganti merah menjadi hijau posyandu) */
+    [data-testid="stSlider"] div[role="slider"] {
+        background-color: #059669 !important;
+        border-color: #059669 !important;
+    }
+    [data-testid="stSlider"] [data-testid="stThumbValue"] {
+        color: #064e3b !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stSlider"] [data-testid="stTickBarMin"],
+    [data-testid="stSlider"] [data-testid="stTickBarMax"] {
+        color: #475569 !important;
+    }
+
+    /* 12. Kartu Metrik Statistik */
     [data-testid="stMetric"] {
         background-color: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
@@ -138,7 +257,7 @@ st.markdown(
         color: #64748b !important;
     }
 
-    /* 8. Kotak notifikasi peringatan (Alert) */
+    /* 13. Kotak Peringatan & Notifikasi (Alert) */
     [data-testid="stAlert"] {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
@@ -149,7 +268,7 @@ st.markdown(
         font-weight: 500 !important;
     }
 
-    /* 9. Sidebar samping */
+    /* 14. Sidebar Navigasi */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
@@ -161,7 +280,7 @@ st.markdown(
         color: #064e3b !important;
     }
 
-    /* 10. Tombol aksi */
+    /* 15. Tombol Aksi */
     button[kind="primary"] {
         background-color: #059669 !important;
         color: #ffffff !important;
@@ -577,15 +696,17 @@ def render_patient_fields(prefix, patient=None):
             value=str(value("tempat_lahir", "")),
             key=f"{prefix}_birthplace",
         )
-        # Tanggal lahir dibuat tanpa batasan tahun agar bebas memilih tahun berapa saja
+        # Format DD/MM/YYYY dan tanpa batas tahun agar bebas dipilih
         birth_date = st.date_input(
             "Tanggal lahir",
             value=date_value("tanggal_lahir"),
+            format="DD/MM/YYYY",
             key=f"{prefix}_dob",
         )
         due_date = st.date_input(
-            "Hari perkiraan lahir",
+            "Hari perkiraan lahir (HPL)",
             value=date_value("hpl"),
+            format="DD/MM/YYYY",
             key=f"{prefix}_hpl",
         )
         gestational_age = st.number_input(
