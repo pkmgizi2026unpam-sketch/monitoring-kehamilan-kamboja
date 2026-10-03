@@ -585,8 +585,8 @@ def build_report_pdf(analysis_data, generated_at):
         ("VALIGN", (0, 0), (-1, -1), "TOP"), ("PADDING", (0, 0), (-1, -1), 4),
     ]))
     elements.append(factor_table)
-    disease_text = ", ".join(f"{name} ({count} kasus)" for name, count in disease_values.items()) or "Tidak ada data penyakit yang tercatat"
-    allergy_text = ", ".join(f"{name} ({count} kasus)" for name, count in allergy_values.items()) or "Tidak ada data alergi yang tercatat"
+    disease_text = ", ".join(f"{name} ({count} kasus)" for name, count in disease_values.items()) or "Tidak ada data penyakit yang tardaftar"
+    allergy_text = ", ".join(f"{name} ({count} kasus)" for name, count in allergy_values.items()) or "Tidak ada data alergi yang tardaftar"
     elements.extend([
         paragraph(f"Riwayat Penyakit Terbanyak: {disease_text}."),
         paragraph(f"Riwayat Alergi Terbanyak: {allergy_text}."),
@@ -1311,11 +1311,12 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                         correct_count += 1
 
                 score = int((correct_count / len(EVALUATION_QUESTIONS)) * 100)
+                is_post_test = "Post-Test" in jenis_tes
 
                 record_test = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "nama_kader": nama_kader.strip(),
-                    "jenis_tes": "Pre-Test" if "Pre-Test" in jenis_tes else "Post-Test",
+                    "jenis_tes": "Post-Test" if is_post_test else "Pre-Test",
                     "wilayah": wilayah_kader.strip(),
                     "skor": score,
                     "jumlah_benar": correct_count,
@@ -1327,24 +1328,36 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 }
                 save_eval_record(record_test)
 
-                st.success(f"Selamat, {nama_kader}! Jawaban Anda berhasil dikirim.")
-                if score >= 80 and "Post-Test" in jenis_tes:
-                    st.balloons()
+                st.success(f"Selamat, {nama_kader}! Jawaban {record_test['jenis_tes']} Anda berhasil dikirim dan tersimpan.")
 
-                res_cols = st.columns(3)
-                res_cols[0].metric("Skor Evaluasi", f"{score} / 100")
-                res_cols[1].metric("Jumlah Jawaban Benar", f"{correct_count} dari 5 soal")
-                res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if score >= 80 else ("Cukup" if score >= 60 else "Perlu Penguatan"))
+                # TAMPILAN JIKA POST-TEST: ADA BALON, SKOR LENGKAP, DAN PEMBAHASAN/KUNCI
+                if is_post_test:
+                    if score >= 80:
+                        st.balloons()
 
-                st.markdown("---")
-                st.markdown("#### Pembahasan & Kunci Jawaban:")
-                for q in EVALUATION_QUESTIONS:
-                    user_ans = selected_answers[q["no"]]
-                    is_correct = user_ans == q["answer"]
-                    if is_correct:
-                        st.markdown(f"✅ **Soal {q['no']} (Benar):** Jawaban Anda **{user_ans}** ({q['options'][user_ans]})")
-                    else:
-                        st.markdown(f"❌ **Soal {q['no']} (Kurang Tepat):** Jawaban Anda **{user_ans}**. Kunci Jawaban: **{q['answer']}. {q['options'][q['answer']]}**")
+                    res_cols = st.columns(3)
+                    res_cols[0].metric("Skor Post-Test", f"{score} / 100")
+                    res_cols[1].metric("Jumlah Jawaban Benar", f"{correct_count} dari 5 soal")
+                    res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if score >= 80 else ("Cukup" if score >= 60 else "Perlu Penguatan"))
+
+                    st.markdown("---")
+                    st.markdown("#### Pembahasan & Kunci Jawaban Post-Test:")
+                    for q in EVALUATION_QUESTIONS:
+                        user_ans = selected_answers[q["no"]]
+                        is_correct = user_ans == q["answer"]
+                        if is_correct:
+                            st.markdown(f"✅ **Soal {q['no']} (Benar):** Jawaban Anda **{user_ans}** ({q['options'][user_ans]})")
+                        else:
+                            st.markdown(f"❌ **Soal {q['no']} (Kurang Tepat):** Jawaban Anda **{user_ans}**. Kunci Jawaban: **{q['answer']}. {q['options'][q['answer']]}**")
+                
+                # TAMPILAN JIKA PRE-TEST: KUNCI JAWABAN DISEMBUNYIKAN
+                else:
+                    st.info(
+                        "ℹ️ **Terima kasih telah berpartisipasi dalam Pre-Test!**\n\n"
+                        "Kunci jawaban dan pembahasan sengaja **tidak ditampilkan pada tahap Pre-Test** "
+                        "agar proses evaluasi pemahaman sebelum dan sesudah pelatihan berlangsung objektif. "
+                        "Pembahasan lengkap beserta kunci jawaban akan ditampilkan setelah Anda menyelesaikan **Post-Test**."
+                    )
 
     with rekap_tab:
         df_rekap = load_eval_data()
