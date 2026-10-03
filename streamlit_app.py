@@ -60,7 +60,7 @@ SOURCE_COLUMN_ALIASES = {
     "preeklamsia_berat": "preeklamsia_berat_eklamsia",
 }
 
-# --- STYLING CSS KONTRAST TINGGI (KOMPATIBEL DENGAN DARK & LIGHT MODE) ---
+# --- STYLING CSS KONTRAS TINGGI (KOMPATIBEL DENGAN DARK & LIGHT MODE) ---
 st.markdown(
     """
     <style>
@@ -577,15 +577,16 @@ def render_patient_fields(prefix, patient=None):
             value=str(value("tempat_lahir", "")),
             key=f"{prefix}_birthplace",
         )
+        # Tanggal lahir dibuat tanpa batasan tahun agar bebas memilih tahun berapa saja
         birth_date = st.date_input(
             "Tanggal lahir",
             value=date_value("tanggal_lahir"),
-            min_value=date(1945, 1, 1),
-            max_value=date(2045, 1, 1),
             key=f"{prefix}_dob",
         )
         due_date = st.date_input(
-            "Hari perkiraan lahir", value=date_value("hpl"), key=f"{prefix}_hpl"
+            "Hari perkiraan lahir",
+            value=date_value("hpl"),
+            key=f"{prefix}_hpl",
         )
         gestational_age = st.number_input(
             "Usia kehamilan (minggu)",
