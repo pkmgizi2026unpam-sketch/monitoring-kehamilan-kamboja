@@ -54,7 +54,7 @@ SOURCE_COLUMNS = [
     "kategori_risiko",
 ] + ADDITIONAL_RISK_COLUMNS
 
-# --- BANK SOAL EVALUASI KADER (DARI FILE SOAL_EVALUASI_KADER_POSYANDU.XLSX) ---
+# --- BANK SOAL EVALUASI KADER (SOAL 4 DISESUAIKAN SEPUTAR DASHBOARD) ---
 EVALUATION_QUESTIONS = [
     {
         "no": 1,
@@ -91,14 +91,14 @@ EVALUATION_QUESTIONS = [
     },
     {
         "no": 4,
-        "question": "Platform Dashboard Monitoring Kehamilan yang diterapkan pada Posyandu Kamboja dibangun menggunakan kombinasi teknologi berbasis cloud apa?",
+        "question": "Informasi apa yang dapat dipantau melalui Dashboard Monitoring Kehamilan?",
         "options": {
-            "A": "Microsoft Word dan Excel manual",
-            "B": "Next.js dan Supabase",
-            "C": "Android Studio dan MySQL Lokal",
-            "D": "WordPress dan cPanel berbayar"
+            "A": "Kategori risiko kehamilan, tekanan darah, dan jumlah ibu hamil yang dipantau.",
+            "B": "Harga obat di apotek sekitar.",
+            "C": "Jadwal keberangkatan transportasi umum.",
+            "D": "Data kependudukan seluruh kecamatan."
         },
-        "answer": "B"
+        "answer": "A"
     },
     {
         "no": 5,
@@ -1069,23 +1069,23 @@ if menu == "📊 Dashboard Monitoring":
             ):
                 st.session_state["selected_risk_category"] = category
 
-selected_category = st.session_state.get("selected_risk_category")
-if selected_category:
-    selected_rows = report_table.loc[
-        filtered[kategori_col].eq(selected_category),
-        ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
-    ]
-    st.subheader(
-        f"Daftar ibu kategori {selected_category} "
-        f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
-    )
-    if selected_rows.empty:
-        st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
-    else:
-        st.dataframe(selected_rows, hide_index=True, width="stretch")
-    if st.button("Tutup daftar kategori", key="close_category_names"):
-        del st.session_state["selected_risk_category"]
-        st.rerun()
+    selected_category = st.session_state.get("selected_risk_category")
+    if selected_category:
+        selected_rows = report_table.loc[
+            filtered[kategori_col].eq(selected_category),
+            ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
+        ]
+        st.subheader(
+            f"Daftar ibu kategori {selected_category} "
+            f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
+        )
+        if selected_rows.empty:
+            st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
+        else:
+            st.dataframe(selected_rows, hide_index=True, width="stretch")
+        if st.button("Tutup daftar kategori", key="close_category_names"):
+            del st.session_state["selected_risk_category"]
+            st.rerun()
 
     if urgent_bp:
         st.error(
