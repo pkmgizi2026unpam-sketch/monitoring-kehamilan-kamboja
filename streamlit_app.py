@@ -842,6 +842,10 @@ def save_eval_record(record):
     df_eval.to_csv(EVAL_FILE, index=False)
 
 
+def reset_eval_answers():
+    st.session_state["eval_form_ver"] = st.session_state.get("eval_form_ver", 0) + 1
+
+
 df = load_data()
 
 # --- SIDEBAR & NAVIGASI MENU ---
@@ -1069,23 +1073,23 @@ if menu == "📊 Dashboard Monitoring":
             ):
                 st.session_state["selected_risk_category"] = category
 
-    selected_category = st.session_state.get("selected_risk_category")
-    if selected_category:
-        selected_rows = report_table.loc[
-            filtered[kategori_col].eq(selected_category),
-            ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
-        ]
-        st.subheader(
-            f"Daftar ibu kategori {selected_category} "
-            f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
-        )
-        if selected_rows.empty:
-            st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
-        else:
-            st.dataframe(selected_rows, hide_index=True, width="stretch")
-        if st.button("Tutup daftar kategori", key="close_category_names"):
-            del st.session_state["selected_risk_category"]
-            st.rerun()
+selected_category = st.session_state.get("selected_risk_category")
+if selected_category:
+    selected_rows = report_table.loc[
+        filtered[kategori_col].eq(selected_category),
+        ["ID", "Nama ibu", "Usia", "Usia hamil (minggu)", "Skor KSPR", "Kategori"],
+    ]
+    st.subheader(
+        f"Daftar ibu kategori {selected_category} "
+        f"({len(selected_rows)} ibu, {filtered_percentage(len(selected_rows)):.1f}%)"
+    )
+    if selected_rows.empty:
+        st.info("Tidak ada ibu pada kategori ini di hasil filter saat ini.")
+    else:
+        st.dataframe(selected_rows, hide_index=True, width="stretch")
+    if st.button("Tutup daftar kategori", key="close_category_names"):
+        del st.session_state["selected_risk_category"]
+        st.rerun()
 
     if urgent_bp:
         st.error(
@@ -1267,10 +1271,13 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
         with id_cols[0]:
             nama_kader = st.text_input("Nama Lengkap Kader *", placeholder="Contoh: Ibu Siti Rahayu")
         with id_cols[1]:
+            # on_change memicu reset_eval_answers() sehingga pilihan radio langsung bersih saat jenis tes berganti
             jenis_tes = st.selectbox(
                 "Jenis Evaluasi *",
                 ["Pre-Test (Sebelum Pelatihan/Penyuluhan)", "Post-Test (Setelah Pelatihan/Penyuluhan)"],
-                index=0
+                index=0,
+                key="eval_jenis_tes_select",
+                on_change=reset_eval_answers
             )
         with id_cols[2]:
             wilayah_kader = st.text_input("Posyandu / Wilayah RT *", value="Posyandu Kamboja 2B")
@@ -1279,6 +1286,8 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
         st.markdown("#### Soal Evaluasi Pengetahuan")
         st.caption("Pilihlah salah satu jawaban yang paling tepat untuk masing-masing pertanyaan di bawah ini:")
 
+        # Menggunakan session versioning agar setiap opsi radio kembali ke kondisi unselected (None) saat berganti tes
+        eval_ver = st.session_state.get("eval_form_ver", 0)
         selected_answers = {}
         for q in EVALUATION_QUESTIONS:
             st.markdown(f"**Soal {q['no']}. {q['question']}**")
@@ -1292,12 +1301,18 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 f"Jawaban untuk Soal {q['no']}:",
                 options_list,
                 index=None,
-                key=f"eval_q_{q['no']}"
+                key=f"eval_q_{q['no']}_{eval_ver}"
             )
             selected_answers[q['no']] = choice[0] if choice else None
             st.markdown("<br/>", unsafe_allow_html=True)
 
-        submit_test = st.button("Kirim Jawaban & Hitung Skor", type="primary", use_container_width=True)
+        action_cols = st.columns([3, 1])
+        with action_cols[0]:
+            submit_test = st.button("Kirim Jawaban & Hitung Skor", type="primary", use_container_width=True)
+        with action_cols[1]:
+            if st.button("Bersihkan Jawaban", type="secondary", use_container_width=True):
+                reset_eval_answers()
+                st.rerun()
 
         if submit_test:
             if not nama_kader.strip():
