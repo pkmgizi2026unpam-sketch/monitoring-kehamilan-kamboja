@@ -232,7 +232,7 @@ st.markdown(
         border: 1px solid #cbd5e1 !important;
     }
 
-    /* Kartu Metrik */
+    /* Kartu Metrik (Disesuaikan agar teks kategori tidak terpotong) */
     [data-testid="stMetric"] {
         background-color: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
@@ -247,6 +247,11 @@ st.markdown(
     [data-testid="stMetricValue"] div, [data-testid="stMetricValue"] {
         color: #064e3b !important;
         font-weight: 800 !important;
+        font-size: 1.65rem !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        text-overflow: unset !important;
+        line-height: 1.2 !important;
     }
 
     /* Tombol */
@@ -1280,7 +1285,7 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
         st.markdown("#### Soal Evaluasi Pengetahuan")
         st.caption("Pilihlah salah satu jawaban yang paling tepat untuk masing-masing pertanyaan di bawah ini:")
 
-        # Memisahkan key radio button antara Pre-Test dan Post-Test agar otomatis reset saat opsi tes berganti
+        # Memisahkan key radio button antara Pre-Test dan Post-Test agar otomatis bersih saat berpindah opsi
         test_key = "post" if "Post-Test" in jenis_tes else "pre"
         eval_session = st.session_state.get("eval_session", 0)
 
@@ -1329,11 +1334,11 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 }
                 save_eval_record(record_test)
 
-                # HASIL LANGSUNG TAMPIL TEPAT DI BAWAH TOMBOL (TANPA SCROLL / REFRESH)
+                # HASIL LANGSUNG TAMPIL TEPAT DI BAWAH TOMBOL (KOTAK KETIGA LEBIH LEBAR)
                 st.markdown("---")
                 st.success(f"Selamat, {nama_kader}! Jawaban {record_test['jenis_tes']} Anda berhasil dikirim dan tersimpan.")
 
-                res_cols = st.columns(3)
+                res_cols = st.columns([1, 1, 1.4])
                 res_cols[0].metric(f"Skor {record_test['jenis_tes']}", f"{score} / 100")
                 res_cols[1].metric("Jumlah Jawaban Benar", f"{correct_count} dari 5 soal")
                 res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if score >= 80 else ("Cukup" if score >= 60 else "Perlu Penguatan"))
@@ -1418,5 +1423,7 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
                     if EVAL_FILE.exists():
                         EVAL_FILE.unlink()
+                    if "last_eval_result" in st.session_state:
+                        del st.session_state["last_eval_result"]
                     st.success("Seluruh data evaluasi berhasil dihapus.")
                     st.rerun()
