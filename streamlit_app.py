@@ -1067,13 +1067,13 @@ if menu == "📊 Dashboard Monitoring":
         )
 
     # =========================================================================
-    # RINCIAN DAFTAR IBU PER KATEGORI (LANGSUNG TAMPIL TANPA PERLU DIKLIK)
+    # RINCIAN DAFTAR IBU PER KATEGORI (TERBUKA UTUH TANPA TOGGLE)
     # =========================================================================
     st.divider()
     st.subheader("Rincian Pasien Berdasarkan Kategori Risiko & Riwayat")
     st.caption("Semua kategori ditampilkan langsung untuk memudahkan pemantauan prioritas.")
 
-    # 1. Kategori KRST (Risiko Sangat Tinggi - Prioritas Utama)
+    # 1. Kategori KRST
     krst_data = report_table[filtered[kategori_col].eq("KRST")]
     st.markdown(
         f"#### 🔴 Kategori KRST · Risiko Sangat Tinggi ({len(krst_data):,} ibu, {filtered_percentage(len(krst_data)):.1f}%)"
@@ -1084,7 +1084,7 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krst_data, hide_index=True, width="stretch", height=240)
 
-    # 2. Kategori KRT (Risiko Tinggi)
+    # 2. Kategori KRT
     krt_data = report_table[filtered[kategori_col].eq("KRT")]
     st.markdown(
         f"#### 🟡 Kategori KRT · Risiko Tinggi ({len(krt_data):,} ibu, {filtered_percentage(len(krt_data)):.1f}%)"
@@ -1095,7 +1095,7 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krt_data, hide_index=True, width="stretch", height=240)
 
-    # 3. Kategori KRR (Risiko Rendah)
+    # 3. Kategori KRR
     krr_data = report_table[filtered[kategori_col].eq("KRR")]
     st.markdown(
         f"#### 🟢 Kategori KRR · Risiko Rendah ({len(krr_data):,} ibu, {filtered_percentage(len(krr_data)):.1f}%)"
@@ -1106,7 +1106,7 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krr_data, hide_index=True, width="stretch", height=240)
 
-    # 4. Kategori Riwayat Sakit & Operasi Caesar
+    # 4. Kategori Riwayat Sakit & Caesar
     if combined_history_count > 0:
         history_table = filtered.loc[
             combined_history_mask,
@@ -1130,7 +1130,7 @@ if menu == "📊 Dashboard Monitoring":
         st.dataframe(history_table, hide_index=True, width="stretch", height=240)
 
     # =========================================================================
-    # DAFTAR PEMANTAUAN LENGKAP & RINGKASAN PROFIL
+    # DAFTAR PEMANTAUAN LENGKAP & PROFIL PASIEN
     # =========================================================================
     st.divider()
     st.subheader("Daftar Pemantauan Lengkap & Profil Pasien")
@@ -1248,25 +1248,39 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
 
     with test_tab:
         st.markdown("#### Identitas Kader / Peserta")
+        eval_session = st.session_state.get("eval_session", 0)
+
         id_cols = st.columns(3)
         with id_cols[0]:
-            nama_kader = st.text_input("Nama Lengkap Kader *", placeholder="Contoh: Ibu Siti Rahayu")
+            nama_kader = st.text_input(
+                "Nama Lengkap Kader *",
+                placeholder="Contoh: Ibu Siti Rahayu",
+                key=f"eval_nama_{eval_session}"
+            )
         with id_cols[1]:
+            def on_test_type_change():
+                if "eval_result" in st.session_state:
+                    del st.session_state["eval_result"]
+
             jenis_tes = st.selectbox(
                 "Jenis Evaluasi *",
                 ["Pre-Test (Sebelum Pelatihan/Penyuluhan)", "Post-Test (Setelah Pelatihan/Penyuluhan)"],
                 index=0,
-                key="eval_jenis_tes_select"
+                key="eval_jenis_tes_select",
+                on_change=on_test_type_change
             )
         with id_cols[2]:
-            wilayah_kader = st.text_input("Posyandu / Wilayah RT *", value="Posyandu Kamboja 2B")
+            wilayah_kader = st.text_input(
+                "Posyandu / Wilayah RT *",
+                value="Posyandu Kamboja 2B",
+                key=f"eval_wilayah_{eval_session}"
+            )
 
         st.markdown("---")
         st.markdown("#### Soal Evaluasi Pengetahuan")
         st.caption("Pilihlah salah satu jawaban yang paling tepat untuk masing-masing pertanyaan di bawah ini:")
 
         test_key = "post" if "Post-Test" in jenis_tes else "pre"
-        eval_session = st.session_state.get("eval_session", 0)
 
         selected_answers = {}
         for q in EVALUATION_QUESTIONS:
@@ -1313,38 +1327,52 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 }
                 save_eval_record(record_test)
 
-                # HASIL LANGSUNG TAMPIL TEPAT DI BAWAH TOMBOL
-                st.markdown("---")
-                st.success(f"Selamat, {nama_kader}! Jawaban {record_test['jenis_tes']} Anda berhasil dikirim dan tersimpan.")
+                # Simpan hasil ke session state agar dapat dibaca di luar blok submit_test
+                st.session_state["eval_result"] = {
+                    "nama": nama_kader.strip(),
+                    "jenis_tes": record_test["jenis_tes"],
+                    "skor": score,
+                    "jumlah_benar": correct_count,
+                    "is_post_test": is_post_test,
+                    "answers": selected_answers.copy(),
+                }
 
-                res_cols = st.columns([1, 1, 1.4])
-                res_cols[0].metric(f"Skor {record_test['jenis_tes']}", f"{score} / 100")
-                res_cols[1].metric("Jumlah Jawaban Benar", f"{correct_count} dari 5 soal")
-                res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if score >= 80 else ("Cukup" if score >= 60 else "Perlu Penguatan"))
+        # KOTAK HASIL SKOR DITAMPILKAN DI BAWAH TOMBOL
+        if "eval_result" in st.session_state:
+            res = st.session_state["eval_result"]
+            st.markdown("---")
+            st.success(f"Selamat, {res['nama']}! Jawaban {res['jenis_tes']} Anda berhasil dikirim dan tersimpan.")
 
-                if is_post_test:
-                    if score >= 80:
-                        st.balloons()
-                    st.markdown("#### Pembahasan & Kunci Jawaban Post-Test:")
-                    for q in EVALUATION_QUESTIONS:
-                        user_ans = selected_answers[q["no"]]
-                        is_correct = user_ans == q["answer"]
-                        if is_correct:
-                            st.markdown(f"✅ **Soal {q['no']} (Benar):** Jawaban Anda **{user_ans}** ({q['options'][user_ans]})")
-                        else:
-                            st.markdown(f"❌ **Soal {q['no']} (Kurang Tepat):** Jawaban Anda **{user_ans}**. Kunci Jawaban: **{q['answer']}. {q['options'][q['answer']]}**")
-                else:
-                    st.info(
-                        "ℹ️ **Terima kasih telah berpartisipasi dalam Pre-Test!**\n\n"
-                        "Kunci jawaban dan pembahasan sengaja **tidak ditampilkan pada tahap Pre-Test** "
-                        "agar proses evaluasi pemahaman sebelum dan sesudah pelatihan berlangsung objektif. "
-                        "Pembahasan lengkap beserta kunci jawaban akan ditampilkan setelah Anda menyelesaikan **Post-Test**."
-                    )
+            res_cols = st.columns([1, 1, 1.4])
+            res_cols[0].metric(f"Skor {res['jenis_tes']}", f"{res['skor']} / 100")
+            res_cols[1].metric("Jumlah Jawaban Benar", f"{res['jumlah_benar']} dari 5 soal")
+            res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if res['skor'] >= 80 else ("Cukup" if res['skor'] >= 60 else "Perlu Penguatan"))
 
-                st.markdown("<br/>", unsafe_allow_html=True)
-                if st.button("🔄 Selesai & Bersihkan Formulir (Untuk Kader Berikutnya)", key="clear_after_submit"):
-                    st.session_state["eval_session"] = eval_session + 1
-                    st.rerun()
+            if res["is_post_test"]:
+                if res["skor"] >= 80:
+                    st.balloons()
+                st.markdown("#### Pembahasan & Kunci Jawaban Post-Test:")
+                for q in EVALUATION_QUESTIONS:
+                    user_ans = res["answers"].get(q["no"])
+                    is_correct = user_ans == q["answer"]
+                    if is_correct:
+                        st.markdown(f"✅ **Soal {q['no']} (Benar):** Jawaban Anda **{user_ans}** ({q['options'][user_ans]})")
+                    else:
+                        st.markdown(f"❌ **Soal {q['no']} (Kurang Tepat):** Jawaban Anda **{user_ans}**. Kunci Jawaban: **{q['answer']}. {q['options'][q['answer']]}**")
+            else:
+                st.info(
+                    "ℹ️ **Terima kasih telah berpartisipasi dalam Pre-Test!**\n\n"
+                    "Kunci jawaban dan pembahasan sengaja **tidak ditampilkan pada tahap Pre-Test** "
+                    "agar proses evaluasi pemahaman sebelum dan sesudah pelatihan berlangsung objektif. "
+                    "Pembahasan lengkap beserta kunci jawaban akan ditampilkan setelah Anda menyelesaikan **Post-Test**."
+                )
+
+            st.markdown("<br/>", unsafe_allow_html=True)
+            # Tombol ini sekarang mereset seluruh jawaban radio, nama, dan kotak hasil evaluasi
+            if st.button("🔄 Selesai & Bersihkan Formulir (Untuk Kader Berikutnya)", key="clear_eval_btn", use_container_width=True):
+                st.session_state["eval_session"] = eval_session + 1
+                del st.session_state["eval_result"]
+                st.rerun()
 
     with rekap_tab:
         df_rekap = load_eval_data()
@@ -1402,5 +1430,7 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
                     if EVAL_FILE.exists():
                         EVAL_FILE.unlink()
+                    if "eval_result" in st.session_state:
+                        del st.session_state["eval_result"]
                     st.success("Seluruh data evaluasi berhasil dihapus.")
                     st.rerun()
