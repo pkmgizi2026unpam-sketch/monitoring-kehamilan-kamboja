@@ -551,4 +551,989 @@ def build_report_pdf(analysis_data, generated_at):
     )
     age_risk = (
         ((analysis_data["usia"] < 20) | (analysis_data["usia"] >= 35)).sum()
-        if not analysis
+        if not analysis_data.empty else 0
+    )
+    short_pelvis = (
+        (analysis_data["tinggi_badan_cm"] < 145).sum()
+        if not analysis_data.empty else 0
+    )
+    caesarean = (
+        pd.to_numeric(analysis_data["riwayat_caesar"], errors="coerce").fillna(0).eq(1).sum()
+        if not analysis_data.empty else 0
+    )
+    disease_values = top_values("riwayat_sakit")
+    allergy_values = top_values("alergi")
+    elements = [
+        Paragraph("LAPORAN ANALISIS KESELURUHAN SKRINING<br/>KEHAMILAN", title_style),
+        Paragraph(
+            "Sistem Monitoring Kehamilan Berdasarkan Skoring Poedji Rochjati (KRR, KRT, KRST)",
+            subtitle_style,
+        ),
+        Paragraph("1. Ringkasan Eksekutif", heading_style),
+        paragraph(
+            f"Laporan ini menyajikan hasil analisis terhadap {total} data ibu hamil "
+            f"berdasarkan filter aktif pada dashboard. Berdasarkan sistem skoring Poedji "
+            f"Rochjati, terdapat {counts.get('KRT', 0) + counts.get('KRST', 0)} ibu hamil "
+            f"({percent(counts.get('KRT', 0) + counts.get('KRST', 0), total)}) dalam kategori "
+            f"kehamilan berisiko (KRT dan KRST), sedangkan {counts.get('KRR', 0)} ibu "
+            f"({percent(counts.get('KRR', 0), total)}) termasuk Kehamilan Risiko Rendah (KRR)."
+        ),
+        Paragraph("2. Distribusi Kategori Risiko (Poedji Rochjati)", heading_style),
+    ]
+    risk_rows = [
+        ["Kategori Risiko", "Rentang Skor PR", "Jumlah (Orang)", "Persentase (%)", "Rekomendasi Tempat & Penolong Bersalin"],
+        ["KRR (Risiko Rendah)", "Skor = 2", counts.get("KRR", 0), percent(counts.get("KRR", 0), total), "Bidan di Polindes, Puskesmas, atau BPM Mandiri"],
+        ["KRT (Risiko Tinggi)", "Skor 6 - 10", counts.get("KRT", 0), percent(counts.get("KRT", 0), total), "Bidan didampingi Dokter di Puskesmas / Rujukan Terencana RS"],
+        ["KRST (Risiko Sgt Tinggi)", "Skor >= 12", counts.get("KRST", 0), percent(counts.get("KRST", 0), total), "Wajib di Rumah Sakit PONEK bersama Dokter Spesialis Obgyn"],
+        ["TOTAL", "-", total, "100.0%" if total else "0.0%", "-"],
+    ]
+    risk_table = Table([[paragraph(cell, small_style) for cell in row] for row in risk_rows], colWidths=[29 * mm, 23 * mm, 21 * mm, 23 * mm, 75 * mm], repeatRows=1)
+    risk_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#183e35")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#9aa9a0")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"), ("PADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.extend([risk_table, Paragraph("3. Faktor Risiko Klinis & Komorbiditas Dominan", heading_style)])
+    factor_rows = [
+        ["Faktor Risiko / Komplikasi", "Jumlah Kasus", "Prevalensi (%)", "Dampak & Catatan Klinis"],
+        ["Tekanan Darah Tinggi / Hipertensi (>=140/90 mmHg)", hypertension, percent(hypertension, total), "Perlu pemantauan tekanan darah dan evaluasi risiko preeklamsia."],
+        ["Usia Rentan Reproduksi (<20 th atau >=35 th)", age_risk, percent(age_risk, total), "Perlu pemantauan khusus sesuai faktor usia ibu."],
+        ["Risiko Panggul Sempit (Tinggi Badan <145 cm)", short_pelvis, percent(short_pelvis, total), "Perlu perhatian terhadap potensi disproporsi kepala panggul."],
+        ["Riwayat Bekas Operasi Caesar (SC)", caesarean, percent(caesarean, total), "Evaluasi rencana persalinan dan risiko ruptur uteri."],
+    ]
+    factor_table = Table([[paragraph(cell, small_style) for cell in row] for row in factor_rows], colWidths=[57 * mm, 22 * mm, 22 * mm, 70 * mm], repeatRows=1)
+    factor_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#183e35")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#9aa9a0")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"), ("PADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(factor_table)
+    disease_text = ", ".join(f"{name} ({count} kasus)" for name, count in disease_values.items()) or "Tidak ada data penyakit yang tercatat"
+    allergy_text = ", ".join(f"{name} ({count} kasus)" for name, count in allergy_values.items()) or "Tidak ada data alergi yang tercatat"
+    elements.extend([
+        paragraph(f"Riwayat Penyakit Terbanyak: {disease_text}."),
+        paragraph(f"Riwayat Alergi Terbanyak: {allergy_text}."),
+        PageBreak(),
+        Paragraph("4. Rekomendasi Tindak Lanjut Program Kesehatan Ibu", heading_style),
+        paragraph("Bagi Kader Posyandu: Pemasangan stiker P4K di rumah seluruh ibu hamil, pendampingan kepatuhan konsumsi 90 Tablet Tambah Darah (TTD) dan kalsium, serta pemantauan donor darah keluarga siaga."),
+        paragraph(f"Bagi Bidan & Puskesmas: Penguatan skrining preeklamsia terpadu pada {hypertension} ibu bertekanan darah tinggi. Koordinasi Rujukan Dini Berencana (RDB) bagi {counts.get('KRST', 0)} ibu hamil KRST sebelum timbul tanda inpartu."),
+        paragraph("Bagi Rumah Sakit Rujukan (PONEK): Kesiapsiagaan fasilitas penanganan gawat darurat obstetri neonatal 24 jam, ketersediaan darah, dan penjadwalan persalinan terencana pada kasus bekas SC dan disproporsi panggul."),
+        Spacer(1, 14 * mm),
+        paragraph("Mengetahui,"), Spacer(1, 15 * mm), paragraph("Koordinator Bidan Puskesmas"),
+        paragraph("___________________________"), paragraph("NIP. ...................................."),
+        Spacer(1, 8 * mm), paragraph("Disusun Oleh,"), Spacer(1, 15 * mm), paragraph("Tim Analis MaternalCare"),
+        paragraph("___________________________"), paragraph(f"Tanggal: {generated_at}"),
+    ])
+    document.build(elements)
+    return buffer.getvalue()
+
+
+def save_patient(record, existing_id=None):
+    record = record.copy()
+    score, _, unassessed = calculate_poedji_score(record)
+    if unassessed:
+        raise ValueError("Lengkapi penilaian faktor risiko tambahan terlebih dahulu.")
+    record["skor_poedji_rochjati"] = score
+    record["kategori_risiko"] = classify_score(score)
+    for column in SOURCE_COLUMNS:
+        if column not in record:
+            record[column] = "Belum dinilai" if column in ADDITIONAL_RISK_COLUMNS else ""
+
+    api_url = get_api_url()
+    if not api_url:
+        raise ValueError("URL Google Sheets API belum dikonfigurasi di secrets.")
+
+    payload = {
+        "existing_id": existing_id,
+        "record": {k: ("" if pd.isna(v) else str(v)) for k, v in record.items()}
+    }
+    res = requests.post(api_url, json=payload, timeout=20)
+    if res.status_code not in (200, 302):
+        raise ValueError("Gagal menyimpan data ke Google Sheets.")
+
+
+def render_patient_fields(prefix, patient=None):
+    # Konversi pasien ke dict jika berupa DataFrame atau Series agar aman
+    if isinstance(patient, pd.DataFrame):
+        patient = patient.iloc[0].to_dict()
+    elif isinstance(patient, pd.Series):
+        patient = patient.to_dict()
+    elif patient is not None:
+        patient = dict(patient)
+
+    def value(column, fallback):
+        if patient is None or column not in patient:
+            return fallback
+        v = patient[column]
+        if pd.isna(v) or v == "":
+            return fallback
+        return v
+
+    def date_value(column, default_date=None):
+        if default_date is None:
+            default_date = date.today()
+        raw = value(column, default_date)
+        parsed = pd.to_datetime(raw, errors="coerce")
+        if pd.notna(parsed):
+            return parsed.date()
+        return default_date
+
+    # Pengaturan tanggal lahir agar tahun kelahiran bebas dipilih dari 1950 sampai hari ini
+    dob_val = date_value("tanggal_lahir", date(1996, 1, 1))
+    min_dob = date(1950, 1, 1)
+    max_dob = date.today()
+    if dob_val < min_dob:
+        min_dob = dob_val
+    if dob_val > max_dob:
+        max_dob = dob_val
+
+    # Pengaturan HPL
+    hpl_val = date_value("hpl", date.today())
+    min_hpl = date(2020, 1, 1)
+    max_hpl = date(2035, 12, 31)
+    if hpl_val < min_hpl:
+        min_hpl = hpl_val
+    if hpl_val > max_hpl:
+        max_hpl = hpl_val
+
+    identity_columns = st.columns(2)
+    with identity_columns[0]:
+        patient_id = st.text_input(
+            "ID ibu",
+            value=str(value("id_ibu", "")),
+            disabled=patient is not None,
+            key=f"{prefix}_id",
+        )
+        name = st.text_input(
+            "Nama ibu", value=str(value("nama_ibu", "")), key=f"{prefix}_name"
+        )
+        nik = st.text_input(
+            "NIK",
+            value=str(value("nik", "")),
+            max_chars=32,
+            key=f"{prefix}_nik",
+        )
+        husband = st.text_input(
+            "Nama suami",
+            value=str(value("nama_suami", "")),
+            key=f"{prefix}_husband",
+        )
+        address = st.text_input(
+            "Alamat", value=str(value("alamat", "")), key=f"{prefix}_address"
+        )
+    with identity_columns[1]:
+        age = st.number_input(
+            "Usia ibu (tahun)", 10, 60, int(value("usia", 30)), key=f"{prefix}_age"
+        )
+        birthplace = st.text_input(
+            "Tempat lahir",
+            value=str(value("tempat_lahir", "")),
+            key=f"{prefix}_birthplace",
+        )
+        birth_date = st.date_input(
+            "Tanggal lahir",
+            value=dob_val,
+            min_value=min_dob,
+            max_value=max_dob,
+            format="DD/MM/YYYY",
+            key=f"{prefix}_dob",
+        )
+        due_date = st.date_input(
+            "Hari perkiraan lahir (HPL)",
+            value=hpl_val,
+            min_value=min_hpl,
+            max_value=max_hpl,
+            format="DD/MM/YYYY",
+            key=f"{prefix}_hpl",
+        )
+        gestational_age = st.number_input(
+            "Usia kehamilan (minggu)",
+            0,
+            45,
+            int(value("usia_hamil_minggu", 20)),
+            key=f"{prefix}_gestation",
+        )
+
+    history_columns = st.columns(3)
+    with history_columns[0]:
+        height = st.number_input(
+            "Tinggi badan (cm)",
+            100,
+            220,
+            int(value("tinggi_badan_cm", 150)),
+            key=f"{prefix}_height",
+        )
+        pregnancy_gap = st.number_input(
+            "Jarak kehamilan (tahun)",
+            0,
+            50,
+            int(value("jarak_kehamilan_tahun", 0)),
+            key=f"{prefix}_gap",
+        )
+        living_children = st.number_input(
+            "Jumlah anak hidup",
+            0,
+            20,
+            int(value("jumlah_anak_hidup", 0)),
+            key=f"{prefix}_children",
+        )
+    with history_columns[1]:
+        caesarean = st.selectbox(
+            "Riwayat operasi caesar",
+            [0, 1],
+            index=int(value("riwayat_caesar", 0)),
+            format_func=lambda option: "Ya" if option else "Tidak",
+            key=f"{prefix}_caesarean",
+        )
+        allergy = st.text_input(
+            "Alergi", value=str(value("alergi", "Tidak ada")), key=f"{prefix}_allergy"
+        )
+        illness = st.text_input(
+            "Riwayat penyakit",
+            value=str(value("riwayat_sakit", "Tidak ada")),
+            key=f"{prefix}_illness",
+        )
+    with history_columns[2]:
+        systolic = st.number_input(
+            "Tekanan sistolik (mmHg)",
+            50,
+            260,
+            int(value("tekanan_darah_sistol", 120)),
+            key=f"{prefix}_systolic",
+        )
+        diastolic = st.number_input(
+            "Tekanan diastolik (mmHg)",
+            30,
+            160,
+            int(value("tekanan_darah_diastol", 80)),
+            key=f"{prefix}_diastolic",
+        )
+
+    additional_labels = {
+        "riwayat_keguguran": "Pernah keguguran",
+        "kehamilan_kembar": "Kehamilan kembar",
+        "riwayat_hamil_anggur": "Riwayat hamil anggur",
+        "anemia_berat": "Anemia berat (Hb <8 g/dL)",
+        "penyakit_kronis": "Penyakit kronis (mis. diabetes/jantung/asma)",
+        "kelainan_letak_janin": "Letak janin sungsang/lintang",
+        "perdarahan_kehamilan": "Perdarahan antepartum",
+        "preeklamsia_berat": "Preeklamsia berat/eklamsia",
+    }
+    st.markdown("#### Faktor risiko tambahan")
+    additional_columns = st.columns(4)
+    additional_values = {}
+    assessment_options = ["Belum dinilai", "Tidak", "Ya"]
+    for index, column in enumerate(ADDITIONAL_RISK_COLUMNS):
+        with additional_columns[index % len(additional_columns)]:
+            current_value = str(value(column, "Belum dinilai"))
+            additional_values[column] = st.selectbox(
+                additional_labels[column],
+                assessment_options,
+                index=(
+                    assessment_options.index(current_value)
+                    if current_value in assessment_options
+                    else 0
+                ),
+                key=f"{prefix}_{column}",
+            )
+
+    record = {
+        "usia": int(age),
+        "tinggi_badan_cm": int(height),
+        "jarak_kehamilan_tahun": int(pregnancy_gap),
+        "jumlah_anak_hidup": int(living_children),
+        "riwayat_caesar": int(caesarean),
+        "tekanan_darah_sistol": int(systolic),
+        "tekanan_darah_diastol": int(diastolic),
+        **additional_values,
+    }
+    score, factors, unassessed = calculate_poedji_score(record)
+    st.metric("Skor Poedji Rochjati", score)
+    category = "Perlu verifikasi" if unassessed else classify_score(score)
+    st.caption(f"Kategori otomatis: {category}")
+    if factors:
+        st.caption("Faktor yang menambah skor: " + ", ".join(label for label, _ in factors))
+    if unassessed:
+        st.warning("Nilai skor belum final. Lengkapi faktor tambahan yang belum dinilai.")
+
+    return {
+        "id_ibu": patient_id.strip(),
+        "nama_ibu": name.strip(),
+        "nik": nik.strip(),
+        "nama_suami": husband.strip(),
+        "usia": int(age),
+        "tempat_lahir": birthplace.strip(),
+        "tanggal_lahir": birth_date.isoformat(),
+        "hpl": due_date.isoformat(),
+        "usia_hamil": f"{int(gestational_age)} minggu",
+        "alamat": address.strip(),
+        "alergi": allergy.strip() or "Tidak ada",
+        "riwayat_sakit": illness.strip() or "Tidak ada",
+        "tinggi_badan_cm": int(height),
+        "jarak_kehamilan_tahun": int(pregnancy_gap),
+        "jumlah_anak_hidup": int(living_children),
+        "riwayat_caesar": int(caesarean),
+        "tekanan_darah_sistol": int(systolic),
+        "tekanan_darah_diastol": int(diastolic),
+        **additional_values,
+        "skor_poedji_rochjati": score,
+        "kategori_risiko": category,
+    }
+
+
+# --- FUNGSI DATA EVALUASI KADER ---
+def load_eval_data():
+    if EVAL_FILE.exists():
+        try:
+            return pd.read_csv(EVAL_FILE)
+        except Exception:
+            pass
+    return pd.DataFrame(
+        columns=[
+            "timestamp", "nama_kader", "jenis_tes", "wilayah",
+            "skor", "jumlah_benar", "jawaban_1", "jawaban_2",
+            "jawaban_3", "jawaban_4", "jawaban_5"
+        ]
+    )
+
+
+def save_eval_record(record):
+    df_eval = load_eval_data()
+    df_eval = pd.concat([df_eval, pd.DataFrame([record])], ignore_index=True)
+    df_eval.to_csv(EVAL_FILE, index=False)
+
+
+df = load_data()
+
+# --- SIDEBAR & NAVIGASI MENU ---
+with st.sidebar:
+    st.markdown("### POSYANDU KAMBOJA")
+    st.caption("Pemantauan risiko kehamilan & Evaluasi KIA")
+    if st.button("Keluar", key="logout_button"):
+        st.session_state["authenticated"] = False
+        st.rerun()
+
+    st.markdown("---")
+    menu = st.radio(
+        "Pilih Menu:",
+        ["📊 Dashboard Monitoring", "📝 Evaluasi Kader (Pre/Post Test)"],
+        index=0,
+        key="main_menu_nav"
+    )
+    st.markdown("---")
+
+
+# =========================================================================
+# MENU 1: DASHBOARD MONITORING KEHAMILAN
+# =========================================================================
+if menu == "📊 Dashboard Monitoring":
+    with st.sidebar:
+        search = st.text_input("Cari nama atau ID ibu", placeholder="Contoh: Ibu-001")
+        selected_risks = st.multiselect(
+            "Kategori KSPR",
+            RISK_ORDER,
+            default=RISK_ORDER[:3],
+        )
+        locations = sorted(df["alamat"].dropna().unique().tolist()) if not df.empty and "alamat" in df.columns else []
+        selected_locations = st.multiselect("Wilayah", locations)
+
+        # Penentuan batas slider usia kehamilan yang aman
+        min_week, max_week = 4, 40
+        if "usia_hamil_minggu" in df.columns:
+            valid_weeks = df["usia_hamil_minggu"].dropna()
+            if not valid_weeks.empty:
+                w_min = int(valid_weeks.min())
+                w_max = int(valid_weeks.max())
+                if w_min < w_max:
+                    min_week, max_week = w_min, w_max
+                elif w_min == w_max:
+                    min_week = max(0, w_min - 2)
+                    max_week = w_min + 2
+
+        selected_weeks = st.slider(
+            "Usia kehamilan (minggu)",
+            min_value=min_week,
+            max_value=max_week,
+            value=(min_week, max_week),
+        )
+
+    target_col = "kategori_risiko" if "kategori_risiko" in df.columns else "kategori_kspr"
+    cond_risk = df[target_col].isin(selected_risks) if not df.empty else pd.Series(dtype=bool)
+    cond_week = (
+        df["usia_hamil_minggu"].between(selected_weeks[0], selected_weeks[1])
+        if not df.empty and "usia_hamil_minggu" in df.columns else pd.Series(dtype=bool)
+    )
+
+    filtered = df[cond_risk & cond_week].copy() if not df.empty else df.copy()
+
+    if selected_locations and not filtered.empty:
+        filtered = filtered[filtered["alamat"].isin(selected_locations)]
+    if search.strip() and not filtered.empty:
+        query = search.strip().casefold()
+        filtered = filtered[
+            filtered["nama_ibu"].astype(str).str.casefold().str.contains(query, na=False)
+            | filtered["id_ibu"].astype(str).str.casefold().str.contains(query, na=False)
+        ]
+
+    st.title("MONITORING KEHAMILAN KAMBOJA 2B")
+    st.caption(
+        "Ringkasan ibu hamil, skor Poedji Rochjati, dan tindak lanjut tekanan darah."
+    )
+
+    kategori_col = "kategori_risiko" if "kategori_risiko" in filtered.columns else "kategori_kspr"
+    total = len(filtered)
+    counts = filtered[kategori_col].value_counts() if not filtered.empty else pd.Series(dtype=int)
+
+    if not filtered.empty:
+        if "status_tekanan_darah" in filtered.columns:
+            urgent_bp = filtered["status_tekanan_darah"].eq("Perlu penilaian segera").sum()
+            needs_review = filtered["status_tekanan_darah"].eq("Perlu evaluasi").sum()
+        else:
+            urgent_bp = ((filtered["tekanan_darah_sistol"] >= 160) | (filtered["tekanan_darah_diastol"] >= 110)).sum()
+            needs_review = ((filtered["tekanan_darah_sistol"] >= 140) | (filtered["tekanan_darah_diastol"] >= 90)).sum() - urgent_bp
+    else:
+        urgent_bp = 0
+        needs_review = 0
+
+    report_table = filtered[
+        [
+            "id_ibu",
+            "nama_ibu",
+            "usia",
+            "usia_hamil_minggu",
+            "hpl_date",
+            "tekanan_darah",
+            "status_tekanan_darah",
+            "skor_poedji_rochjati",
+            "kategori_kspr",
+        ]
+    ].copy() if not filtered.empty else pd.DataFrame(columns=[
+        "id_ibu", "nama_ibu", "usia", "usia_hamil_minggu", "hpl_date",
+        "tekanan_darah", "status_tekanan_darah", "skor_poedji_rochjati", "kategori_kspr"
+    ])
+    report_table = report_table.rename(
+        columns={
+            "id_ibu": "ID",
+            "nama_ibu": "Nama ibu",
+            "usia": "Usia",
+            "usia_hamil_minggu": "Usia hamil (minggu)",
+            "hpl_date": "HPL",
+            "tekanan_darah": "TD (mmHg)",
+            "status_tekanan_darah": "Status TD",
+            "skor_poedji_rochjati": "Skor KSPR",
+            "kategori_kspr": "Kategori",
+        }
+    )
+    if not report_table.empty and "HPL" in report_table.columns:
+        report_table["HPL"] = report_table["HPL"].dt.strftime("%d %b %Y").fillna("-")
+
+    downloaded_at = datetime.now(WIB)
+    downloaded_at_label = downloaded_at.strftime("%d %B %Y, %H:%M:%S WIB")
+    downloaded_at_file = downloaded_at.strftime("%Y-%m-%d_%H-%M-%S")
+
+    download_columns = st.columns(2)
+    with download_columns[0]:
+        st.download_button(
+            "Unduh laporan PDF terbaru",
+            data=build_report_pdf(filtered, downloaded_at_label),
+            file_name=f"laporan_pemantauan_{downloaded_at_file}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    with download_columns[1]:
+        st.download_button(
+            "Unduh hasil filter (CSV)",
+            data=report_table.to_csv(index=False).encode("utf-8-sig"),
+            file_name="laporan_pemantauan_kehamilan.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    metric_columns = st.columns(5)
+    metric_columns[0].metric(
+        "Ibu terpantau", f"{total:,}", "100% dari hasil filter", delta_color="off"
+    )
+
+    def filtered_percentage(count):
+        return count / total * 100 if total else 0
+
+    metric_columns[1].metric(
+        "KRR · Risiko rendah",
+        f"{counts.get('KRR', 0):,}",
+        f"{filtered_percentage(counts.get('KRR', 0)):.1f}% dari total",
+        delta_color="off",
+    )
+    metric_columns[2].metric(
+        "KRT · Risiko tinggi",
+        f"{counts.get('KRT', 0):,}",
+        f"{filtered_percentage(counts.get('KRT', 0)):.1f}% dari total",
+        delta_color="off",
+    )
+    metric_columns[3].metric(
+        "KRST · Risiko sangat tinggi",
+        f"{counts.get('KRST', 0):,}",
+        f"{filtered_percentage(counts.get('KRST', 0)):.1f}% dari total",
+        delta_color="off",
+    )
+    attention_count = urgent_bp + needs_review
+    metric_columns[4].metric(
+        "Tekanan darah perlu perhatian",
+        f"{attention_count:,}",
+        f"{filtered_percentage(attention_count):.1f}% dari total",
+        delta_color="off",
+    )
+
+    if not filtered.empty:
+        illness_values = filtered["riwayat_sakit"].astype("string").str.strip()
+        illness_mask = illness_values.notna() & ~illness_values.str.casefold().isin(
+            ["", "tidak ada", "belum dinilai", "-"]
+        )
+        caesarean_mask = pd.to_numeric(filtered["riwayat_caesar"], errors="coerce").eq(1)
+        combined_history_mask = illness_mask & caesarean_mask
+        combined_history_count = combined_history_mask.sum()
+        illness_count = illness_mask.sum()
+        caesarean_count = caesarean_mask.sum()
+    else:
+        combined_history_mask = pd.Series(dtype=bool)
+        combined_history_count = 0
+        illness_count = 0
+        caesarean_count = 0
+
+    st.metric(
+        "Memiliki riwayat sakit dan operasi Caesar",
+        f"{combined_history_count:,}",
+        f"{filtered_percentage(combined_history_count):.1f}% dari total",
+        delta_color="off",
+    )
+    st.caption(
+        f"Rincian: {illness_count:,} memiliki riwayat sakit · "
+        f"{caesarean_count:,} memiliki riwayat operasi Caesar. "
+        "Metrik menghitung ibu yang memenuhi kedua kondisi sekaligus."
+    )
+
+    if urgent_bp:
+        st.error(
+            f"{urgent_bp} ibu memiliki tekanan darah ≥160 sistolik atau ≥110 diastolik. "
+            "Tinjau hasil ukur dan ikuti protokol rujukan setempat segera."
+        )
+    elif needs_review:
+        st.warning(
+            f"{needs_review} ibu memiliki tekanan darah ≥140 sistolik atau ≥90 diastolik. "
+            "Perlu evaluasi oleh tenaga kesehatan."
+        )
+
+    st.subheader("Sebaran risiko")
+    chart_column, detail_column = st.columns([1, 1.5])
+    with chart_column:
+        risk_counts = (
+            counts.reindex(RISK_ORDER, fill_value=0)
+            .rename_axis("Kategori")
+            .to_frame("Jumlah ibu")
+        )
+        st.bar_chart(risk_counts, color="#39816f", height=260)
+    with detail_column:
+        st.markdown("#### Dasar pembacaan KSPR")
+        st.markdown(
+            "Skor **2**: KRR · skor **6–10**: KRT · skor **≥12**: KRST. "
+            "Kategori pada dashboard diturunkan dari skor yang tersimpan. "
+            "Nilai atau kategori sumber yang tidak sesuai rentang ditandai untuk verifikasi."
+        )
+        st.caption(
+            "Dashboard memakai skor KSPR dari dataset, bukan menghitung ulang faktor klinis. "
+            "Label sumber KBR pada skor 2 dipetakan ke KRR."
+        )
+
+    # =========================================================================
+    # RINCIAN DAFTAR IBU PER KATEGORI (TERBUKA UTUH TANPA TOGGLE)
+    # =========================================================================
+    st.divider()
+    st.subheader("Rincian Pasien Berdasarkan Kategori Risiko & Riwayat")
+    st.caption("Semua kategori ditampilkan langsung untuk memudahkan pemantauan prioritas.")
+
+    # 1. Kategori KRST
+    krst_data = report_table[filtered[kategori_col].eq("KRST")] if not filtered.empty else report_table
+    st.markdown(
+        f"#### 🔴 Kategori KRST · Risiko Sangat Tinggi ({len(krst_data):,} ibu, {filtered_percentage(len(krst_data)):.1f}%)"
+    )
+    st.caption("Wajib bersalin di Rumah Sakit PONEK bersama Dokter Spesialis Obgyn.")
+    if krst_data.empty:
+        st.info("Tidak ada ibu dalam kategori KRST pada hasil filter.")
+    else:
+        st.dataframe(krst_data, hide_index=True, width="stretch", height=240)
+
+    # 2. Kategori KRT
+    krt_data = report_table[filtered[kategori_col].eq("KRT")] if not filtered.empty else report_table
+    st.markdown(
+        f"#### 🟡 Kategori KRT · Risiko Tinggi ({len(krt_data):,} ibu, {filtered_percentage(len(krt_data)):.1f}%)"
+    )
+    st.caption("Pemantauan intensif di Puskesmas didampingi dokter / rujukan terencana.")
+    if krt_data.empty:
+        st.info("Tidak ada ibu dalam kategori KRT pada hasil filter.")
+    else:
+        st.dataframe(krt_data, hide_index=True, width="stretch", height=240)
+
+    # 3. Kategori KRR
+    krr_data = report_table[filtered[kategori_col].eq("KRR")] if not filtered.empty else report_table
+    st.markdown(
+        f"#### 🟢 Kategori KRR · Risiko Rendah ({len(krr_data):,} ibu, {filtered_percentage(len(krr_data)):.1f}%)"
+    )
+    st.caption("Persalinan dapat ditangani bidan di Polindes, Puskesmas, atau BPM Mandiri.")
+    if krr_data.empty:
+        st.info("Tidak ada ibu dalam kategori KRR pada hasil filter.")
+    else:
+        st.dataframe(krr_data, hide_index=True, width="stretch", height=240)
+
+    # 4. Kategori Riwayat Sakit & Caesar
+    if combined_history_count > 0:
+        history_table = filtered.loc[
+            combined_history_mask,
+            ["id_ibu", "nama_ibu", "riwayat_sakit", "riwayat_caesar"],
+        ].copy()
+        history_table = history_table.rename(
+            columns={
+                "id_ibu": "ID",
+                "nama_ibu": "Nama ibu",
+                "riwayat_sakit": "Riwayat sakit",
+                "riwayat_caesar": "Riwayat operasi Caesar",
+            }
+        )
+        history_table["Riwayat operasi Caesar"] = pd.to_numeric(
+            history_table["Riwayat operasi Caesar"], errors="coerce"
+        ).map({1: "Ya", 0: "Tidak"}).fillna("Belum dinilai")
+        st.markdown(
+            f"#### 🏥 Riwayat Penyakit & Operasi Caesar Sekaligus ({len(history_table):,} ibu, {filtered_percentage(len(history_table)):.1f}%)"
+        )
+        st.caption("Ibu yang memenuhi kedua kriteria medis risiko (memiliki riwayat sakit dan riwayat caesar).")
+        st.dataframe(history_table, hide_index=True, width="stretch", height=240)
+
+    # =========================================================================
+    # DAFTAR PEMANTAUAN LENGKAP & PROFIL PASIEN
+    # =========================================================================
+    st.divider()
+    st.subheader("Daftar Pemantauan Lengkap & Profil Pasien")
+    if filtered.empty:
+        st.info("Belum ada data ibu hamil yang tersimpan di sistem. Silakan tambahkan data melalui formulir 'Tambah ibu baru' di bawah.")
+    else:
+        valid_patients = filtered[
+            filtered["id_ibu"].astype(str).str.strip().ne("")
+            & ~filtered["id_ibu"].astype(str).str.casefold().isin(["nan", "none"])
+        ].drop_duplicates(subset=["id_ibu"]).copy()
+
+        if valid_patients.empty:
+            st.info("Belum ada data ibu yang valid.")
+        else:
+            patient_options = valid_patients.sort_values("nama_ibu")["id_ibu"].tolist()
+            id_name_map = dict(zip(valid_patients["id_ibu"], valid_patients["nama_ibu"]))
+            id_record_map = valid_patients.set_index("id_ibu").to_dict(orient="index")
+
+            selected_id = st.selectbox(
+                "Lihat ringkasan individual ibu",
+                patient_options,
+                format_func=lambda pid: f"{id_name_map.get(pid, '')} · {pid}",
+            )
+            if selected_id and selected_id in id_record_map:
+                patient = id_record_map[selected_id]
+                patient["id_ibu"] = selected_id
+
+                profile_columns = st.columns(4)
+                profile_columns[0].metric("Skor KSPR", f"{int(patient.get('skor_poedji_rochjati', 0))}")
+                profile_columns[1].metric("Kategori", str(patient.get(kategori_col, 'Belum dinilai')))
+                profile_columns[2].metric("Usia kehamilan", f"{int(patient.get('usia_hamil_minggu', 0))} minggu")
+                profile_columns[3].metric("HPL", display_date(patient.get("hpl_date")))
+
+                info_columns = st.columns(3)
+                with info_columns[0]:
+                    st.markdown(f"**Ibu:** {patient.get('nama_ibu', '-')} ({patient.get('usia', '-')} tahun)")
+                    st.markdown(f"**Wilayah:** {patient.get('alamat', '-')}")
+                with info_columns[1]:
+                    st.markdown(f"**Tekanan darah:** {patient.get('tekanan_darah', '-')} mmHg")
+                    st.markdown(f"**Status:** {patient.get('status_tekanan_darah', '-')}")
+                with info_columns[2]:
+                    st.markdown(f"**Riwayat kesehatan:** {patient.get('riwayat_sakit', '-')}")
+                    st.markdown(f"**Alergi:** {patient.get('alergi', '-')}")
+
+        st.markdown("#### Tabel Keseluruhan Ibu Hamil Terpantau")
+        st.dataframe(report_table, hide_index=True, width="stretch", height=320)
+
+    st.caption(
+        "Informasi dashboard membantu pemantauan, bukan diagnosis. "
+        "Keputusan klinis dan rujukan tetap dilakukan oleh bidan atau dokter."
+    )
+
+    st.divider()
+    st.subheader("Kelola data ibu")
+    st.warning(
+        "Dataset memuat NIK dan informasi kesehatan. Batasi akses dashboard dan file CSV "
+        "kepada petugas berwenang; aplikasi ini belum memiliki autentikasi pengguna."
+    )
+
+    new_tab, edit_tab = st.tabs(["Tambah ibu baru", "Perbarui data"])
+    with new_tab:
+        new_prefix = f"new_{st.session_state.get('new_form_version', 0)}"
+        st.caption("Lengkapi identitas, informasi kehamilan, tekanan darah, dan faktor risiko.")
+        new_record = render_patient_fields(new_prefix)
+        add_submitted = st.button("Simpan ibu baru", type="primary", key="add_patient_submit")
+
+        if add_submitted:
+            if not new_record["id_ibu"] or not new_record["nama_ibu"] or not new_record["nik"]:
+                st.error("ID ibu, nama ibu, dan NIK wajib diisi.")
+            else:
+                try:
+                    save_patient(new_record)
+                    load_data.clear()
+                    st.session_state["new_form_version"] = (
+                        st.session_state.get("new_form_version", 0) + 1
+                    )
+                    st.success("Data ibu baru berhasil disimpan.")
+                    st.rerun()
+                except (OSError, ValueError) as error:
+                    st.error(f"Data belum tersimpan: {error}")
+
+    with edit_tab:
+        valid_edit_df = (
+            df[
+                df["id_ibu"].astype(str).str.strip().ne("")
+                & ~df["id_ibu"].astype(str).str.casefold().isin(["nan", "none"])
+            ].copy()
+            if not df.empty and "id_ibu" in df.columns
+            else pd.DataFrame()
+        )
+
+        if valid_edit_df.empty:
+            st.info("Belum ada data ibu untuk diperbarui. Silakan tambahkan data melalui tab 'Tambah ibu baru' terlebih dahulu.")
+        else:
+            unique_edit_patients = valid_edit_df.drop_duplicates(subset=["id_ibu"]).copy()
+            edit_options = unique_edit_patients.sort_values("nama_ibu")["id_ibu"].tolist()
+            edit_name_map = dict(zip(unique_edit_patients["id_ibu"], unique_edit_patients["nama_ibu"]))
+            edit_record_map = unique_edit_patients.set_index("id_ibu").to_dict(orient="index")
+
+            edit_id = st.selectbox(
+                "Pilih ibu",
+                edit_options,
+                format_func=lambda pid: f"{edit_name_map.get(pid, '')} · {pid}",
+                key="edit_patient_selector",
+            )
+            st.caption("ID ibu dikunci untuk menjaga keterkaitan catatan.")
+            selected_edit_data = edit_record_map.get(edit_id, {})
+            selected_edit_data["id_ibu"] = edit_id
+
+            edited_record = render_patient_fields(
+                f"edit_{edit_id}", selected_edit_data
+            )
+            update_submitted = st.button(
+                "Simpan perubahan", type="primary", key="update_patient_submit"
+            )
+
+            if update_submitted:
+                if not edited_record["nama_ibu"] or not edited_record["nik"]:
+                    st.error("Nama ibu dan NIK wajib diisi.")
+                else:
+                    try:
+                        save_patient(edited_record, existing_id=edit_id)
+                        load_data.clear()
+                        st.success("Perubahan data berhasil disimpan.")
+                        st.rerun()
+                    except (OSError, ValueError) as error:
+                        st.error(f"Perubahan belum tersimpan: {error}")
+
+
+# =========================================================================
+# MENU 2: EVALUASI KADER POSYANDU (PRE-TEST & POST-TEST)
+# =========================================================================
+elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
+    st.title("EVALUASI PEMAHAMAN KADER POSYANDU")
+    st.caption(
+        "Kuesioner Pre-Test dan Post-Test untuk mengukur efektivitas pelatihan "
+        "dan penerapan Platform Dashboard Pemantauan Kehamilan."
+    )
+
+    test_tab, rekap_tab = st.tabs(["📝 Lembar Kuesioner (Pre/Post Test)", "📊 Rekapitulasi Nilai & Laporan PKM"])
+
+    with test_tab:
+        st.markdown("#### Identitas Kader / Peserta")
+        eval_session = st.session_state.get("eval_session", 0)
+
+        id_cols = st.columns(3)
+        with id_cols[0]:
+            nama_kader = st.text_input(
+                "Nama Lengkap Kader *",
+                placeholder="Contoh: Ibu Siti Rahayu",
+                key=f"eval_nama_{eval_session}"
+            )
+        with id_cols[1]:
+            def on_test_type_change():
+                if "eval_result" in st.session_state:
+                    del st.session_state["eval_result"]
+
+            jenis_tes = st.selectbox(
+                "Jenis Evaluasi *",
+                ["Pre-Test (Sebelum Pelatihan/Penyuluhan)", "Post-Test (Setelah Pelatihan/Penyuluhan)"],
+                index=0,
+                key="eval_jenis_tes_select",
+                on_change=on_test_type_change
+            )
+        with id_cols[2]:
+            wilayah_kader = st.text_input(
+                "Posyandu / Wilayah RT *",
+                value="Posyandu Kamboja 2B",
+                key=f"eval_wilayah_{eval_session}"
+            )
+
+        st.markdown("---")
+        st.markdown("#### Soal Evaluasi Pengetahuan")
+        st.caption("Pilihlah salah satu jawaban yang paling tepat untuk masing-masing pertanyaan di bawah ini:")
+
+        test_key = "post" if "Post-Test" in jenis_tes else "pre"
+
+        selected_answers = {}
+        for q in EVALUATION_QUESTIONS:
+            st.markdown(f"**Soal {q['no']}. {q['question']}**")
+            options_list = [
+                f"A. {q['options']['A']}",
+                f"B. {q['options']['B']}",
+                f"C. {q['options']['C']}",
+                f"D. {q['options']['D']}",
+            ]
+            choice = st.radio(
+                f"Jawaban untuk Soal {q['no']}:",
+                options_list,
+                index=None,
+                key=f"eval_q_{q['no']}_{test_key}_{eval_session}"
+            )
+            selected_answers[q['no']] = choice[0] if choice else None
+            st.markdown("<br/>", unsafe_allow_html=True)
+
+        submit_test = st.button("Kirim Jawaban & Hitung Skor", type="primary", use_container_width=True)
+
+        if submit_test:
+            if not nama_kader.strip():
+                st.error("Mohon isi Nama Lengkap Kader sebelum mengirimkan jawaban.")
+            elif any(ans is None for ans in selected_answers.values()):
+                st.warning("Mohon jawab seluruh 5 soal evaluasi sebelum mengirimkan.")
+            else:
+                correct_count = sum(1 for q in EVALUATION_QUESTIONS if selected_answers[q["no"]] == q["answer"])
+                score = int((correct_count / len(EVALUATION_QUESTIONS)) * 100)
+                is_post_test = "Post-Test" in jenis_tes
+
+                record_test = {
+                    "timestamp": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S"),
+                    "nama_kader": nama_kader.strip(),
+                    "jenis_tes": "Post-Test" if is_post_test else "Pre-Test",
+                    "wilayah": wilayah_kader.strip(),
+                    "skor": score,
+                    "jumlah_benar": correct_count,
+                    "jawaban_1": selected_answers[1],
+                    "jawaban_2": selected_answers[2],
+                    "jawaban_3": selected_answers[3],
+                    "jawaban_4": selected_answers[4],
+                    "jawaban_5": selected_answers[5],
+                }
+                save_eval_record(record_test)
+
+                st.session_state["eval_result"] = {
+                    "nama": nama_kader.strip(),
+                    "jenis_tes": record_test["jenis_tes"],
+                    "skor": score,
+                    "jumlah_benar": correct_count,
+                    "is_post_test": is_post_test,
+                    "answers": selected_answers.copy(),
+                }
+
+        # KOTAK HASIL SKOR DITAMPILKAN DI BAWAH TOMBOL
+        if "eval_result" in st.session_state:
+            res = st.session_state["eval_result"]
+            st.markdown("---")
+            st.success(f"Selamat, {res['nama']}! Jawaban {res['jenis_tes']} Anda berhasil dikirim dan tersimpan.")
+
+            res_cols = st.columns([1, 1, 1.4])
+            res_cols[0].metric(f"Skor {res['jenis_tes']}", f"{res['skor']} / 100")
+            res_cols[1].metric("Jumlah Jawaban Benar", f"{res['jumlah_benar']} dari 5 soal")
+            res_cols[2].metric("Kategori Pemahaman", "Sangat Baik" if res['skor'] >= 80 else ("Cukup" if res['skor'] >= 60 else "Perlu Penguatan"))
+
+            if res["is_post_test"]:
+                if res["skor"] >= 80:
+                    st.balloons()
+                st.markdown("#### Pembahasan & Kunci Jawaban Post-Test:")
+                for q in EVALUATION_QUESTIONS:
+                    user_ans = res["answers"].get(q["no"])
+                    is_correct = user_ans == q["answer"]
+                    if is_correct:
+                        st.markdown(f"✅ **Soal {q['no']} (Benar):** Jawaban Anda **{user_ans}** ({q['options'][user_ans]})")
+                    else:
+                        st.markdown(f"❌ **Soal {q['no']} (Kurang Tepat):** Jawaban Anda **{user_ans}**. Kunci Jawaban: **{q['answer']}. {q['options'][q['answer']]}**")
+            else:
+                st.info(
+                    "ℹ️ **Terima kasih telah berpartisipasi dalam Pre-Test!**\n\n"
+                    "Kunci jawaban dan pembahasan sengaja **tidak ditampilkan pada tahap Pre-Test** "
+                    "agar proses evaluasi pemahaman sebelum dan sesudah pelatihan berlangsung objektif. "
+                    "Pembahasan lengkap beserta kunci jawaban akan ditampilkan setelah Anda menyelesaikan **Post-Test**."
+                )
+
+            st.markdown("<br/>", unsafe_allow_html=True)
+            if st.button("🔄 Selesai & Bersihkan Formulir (Untuk Kader Berikutnya)", key="clear_eval_btn", use_container_width=True):
+                st.session_state["eval_session"] = eval_session + 1
+                del st.session_state["eval_result"]
+                st.rerun()
+
+    with rekap_tab:
+        df_rekap = load_eval_data()
+        st.subheader("Rekapitulasi Hasil Evaluasi Kader Posyandu")
+        st.caption("Data hasil evaluasi tersimpan otomatis dan dapat digunakan sebagai bukti luaran Pengabdian Kepada Masyarakat (PKM).")
+
+        if df_rekap.empty:
+            st.info("Belum ada data evaluasi yang masuk. Silakan isi kuesioner pada tab lembar kuesioner.")
+        else:
+            pre_scores = df_rekap[df_rekap["jenis_tes"] == "Pre-Test"]["skor"]
+            post_scores = df_rekap[df_rekap["jenis_tes"] == "Post-Test"]["skor"]
+
+            avg_pre = pre_scores.mean() if not pre_scores.empty else 0
+            avg_post = post_scores.mean() if not post_scores.empty else 0
+            peningkatan = avg_post - avg_pre if (not pre_scores.empty and not post_scores.empty) else 0
+
+            stat_cols = st.columns(4)
+            stat_cols[0].metric("Total Peserta Mengisi", f"{len(df_rekap)} catatan")
+            stat_cols[1].metric("Rata-Rata Pre-Test", f"{avg_pre:.1f}")
+            stat_cols[2].metric("Rata-Rata Post-Test", f"{avg_post:.1f}")
+            stat_cols[3].metric("Kenaikan Skor Rata-rata", f"{peningkatan:+.1f} poin")
+
+            st.markdown("#### Tabel Data Lengkap Responden")
+            display_rekap = df_rekap.rename(
+                columns={
+                    "timestamp": "Waktu",
+                    "nama_kader": "Nama Kader",
+                    "jenis_tes": "Jenis Tes",
+                    "wilayah": "Posyandu/Wilayah",
+                    "skor": "Skor",
+                    "jumlah_benar": "Benar",
+                    "jawaban_1": "Q1",
+                    "jawaban_2": "Q2",
+                    "jawaban_3": "Q3",
+                    "jawaban_4": "Q4",
+                    "jawaban_5": "Q5",
+                }
+            )
+            st.dataframe(display_rekap, hide_index=True, width="stretch")
+
+            csv_data = df_rekap.to_csv(index=False).encode("utf-8-sig")
+            st.download_button(
+                "📥 Unduh Rekap Nilai Evaluasi (CSV)",
+                data=csv_data,
+                file_name=f"rekap_evaluasi_kader_{datetime.now(WIB).strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+            # --- MENU HAPUS / RESET DATA EVALUASI ---
+            st.markdown("---")
+            with st.expander("🗑️ Pengaturan / Hapus Data Evaluasi"):
+                st.caption("Gunakan menu ini jika ingin membersihkan data percobaan sebelum kegiatan resmi dimulai.")
+                confirm_del = st.checkbox("Saya yakin ingin mengosongkan / menghapus semua catatan evaluasi di atas.")
+                if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
+                    if EVAL_FILE.exists():
+                        EVAL_FILE.unlink()
+                    if "eval_result" in st.session_state:
+                        del st.session_state["eval_result"]
+                    st.success("Seluruh data evaluasi berhasil dihapus.")
+                    st.rerun()
