@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
@@ -16,6 +16,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
+
+WIB = timezone(timedelta(hours=7))
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_FILE = APP_DIR / "dataset_ibu_hamil_kamboja2b.csv"
@@ -957,8 +959,10 @@ if menu == "📊 Dashboard Monitoring":
         }
     )
     report_table["HPL"] = report_table["HPL"].dt.strftime("%d %b %Y").fillna("-")
-    downloaded_at = datetime.now()
-    downloaded_at_label = downloaded_at.strftime("%d %B %Y, %H:%M:%S")
+
+    # Waktu laporan menggunakan WIB (UTC+7)
+    downloaded_at = datetime.now(WIB)
+    downloaded_at_label = downloaded_at.strftime("%d %B %Y, %H:%M:%S WIB")
     downloaded_at_file = downloaded_at.strftime("%Y-%m-%d_%H-%M-%S")
 
     download_columns = st.columns(2)
@@ -1313,7 +1317,7 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 is_post_test = "Post-Test" in jenis_tes
 
                 record_test = {
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "timestamp": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S"),
                     "nama_kader": nama_kader.strip(),
                     "jenis_tes": "Post-Test" if is_post_test else "Pre-Test",
                     "wilayah": wilayah_kader.strip(),
@@ -1327,7 +1331,6 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 }
                 save_eval_record(record_test)
 
-                # Simpan hasil ke session state agar dapat dibaca di luar blok submit_test
                 st.session_state["eval_result"] = {
                     "nama": nama_kader.strip(),
                     "jenis_tes": record_test["jenis_tes"],
@@ -1368,7 +1371,6 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 )
 
             st.markdown("<br/>", unsafe_allow_html=True)
-            # Tombol ini sekarang mereset seluruh jawaban radio, nama, dan kotak hasil evaluasi
             if st.button("🔄 Selesai & Bersihkan Formulir (Untuk Kader Berikutnya)", key="clear_eval_btn", use_container_width=True):
                 st.session_state["eval_session"] = eval_session + 1
                 del st.session_state["eval_result"]
@@ -1417,7 +1419,7 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
             st.download_button(
                 "📥 Unduh Rekap Nilai Evaluasi (CSV)",
                 data=csv_data,
-                file_name=f"rekap_evaluasi_kader_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"rekap_evaluasi_kader_{datetime.now(WIB).strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
