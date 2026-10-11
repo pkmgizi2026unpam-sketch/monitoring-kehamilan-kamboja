@@ -536,13 +536,23 @@ def build_report_pdf(analysis_data, generated_at):
 
     total = len(analysis_data)
     kat_col = "kategori_risiko" if "kategori_risiko" in analysis_data.columns else "kategori_kspr"
-    counts = analysis_data[kat_col].value_counts()
-    hypertension = analysis_data["status_tekanan_darah"].isin(
-        ["Perlu evaluasi", "Perlu penilaian segera"]
-    ).sum()
-    age_risk = ((analysis_data["usia"] < 20) | (analysis_data["usia"] >= 35)).sum()
-    short_pelvis = (analysis_data["tinggi_badan_cm"] < 145).sum()
-    caesarean = pd.to_numeric(analysis_data["riwayat_caesar"], errors="coerce").fillna(0).eq(1).sum()
+    counts = analysis_data[kat_col].value_counts() if not analysis_data.empty else pd.Series(dtype=int)
+    hypertension = (
+        analysis_data["status_tekanan_darah"].isin(["Perlu evaluasi", "Perlu penilaian segera"]).sum()
+        if not analysis_data.empty else 0
+    )
+    age_risk = (
+        ((analysis_data["usia"] < 20) | (analysis_data["usia"] >= 35)).sum()
+        if not analysis_data.empty else 0
+    )
+    short_pelvis = (
+        (analysis_data["tinggi_badan_cm"] < 145).sum()
+        if not analysis_data.empty else 0
+    )
+    caesarean = (
+        pd.to_numeric(analysis_data["riwayat_caesar"], errors="coerce").fillna(0).eq(1).sum()
+        if not analysis_data.empty else 0
+    )
     disease_values = top_values("riwayat_sakit")
     allergy_values = top_values("alergi")
     elements = [
@@ -880,19 +890,21 @@ if menu == "📊 Dashboard Monitoring":
             RISK_ORDER,
             default=RISK_ORDER[:3],
         )
-        locations = sorted(df["alamat"].dropna().unique().tolist())
+        locations = sorted(df["alamat"].dropna().unique().tolist()) if not df.empty and "alamat" in df.columns else []
         selected_locations = st.multiselect("Wilayah", locations)
 
-        if "usia_hamil" in df.columns:
-            df["usia_hamil_minggu"] = (
-                df["usia_hamil"].astype(str).str.extract(r"(\d+)").astype(float)
-            )
-
-        if "usia_hamil_minggu" in df.columns and not df["usia_hamil_minggu"].isna().all():
-            min_week = int(df["usia_hamil_minggu"].min())
-            max_week = int(df["usia_hamil_minggu"].max())
-        else:
-            min_week, max_week = 4, 40
+        # Penentuan batas slider usia kehamilan yang aman (mencegah StreamlitInvalidMinMaxError jika data kosong)
+        min_week, max_week = 4, 40
+        if "usia_hamil_minggu" in df.columns:
+            valid_weeks = df["usia_hamil_minggu"].dropna()
+            if not valid_weeks.empty:
+                w_min = int(valid_weeks.min())
+                w_max = int(valid_weeks.max())
+                if w_min < w_max:
+                    min_week, max_week = w_min, w_max
+                elif w_min == w_max:
+                    min_week = max(0, w_min - 2)
+                    max_week = w_min + 2
 
         selected_weeks = st.slider(
             "Usia kehamilan (minggu)",
@@ -902,14 +914,17 @@ if menu == "📊 Dashboard Monitoring":
         )
 
     target_col = "kategori_risiko" if "kategori_risiko" in df.columns else "kategori_kspr"
-    cond_risk = df[target_col].isin(selected_risks)
-    cond_week = df["usia_hamil_minggu"].between(selected_weeks[0], selected_weeks[1])
+    cond_risk = df[target_col].isin(selected_risks) if not df.empty else pd.Series(dtype=bool)
+    cond_week = (
+        df["usia_hamil_minggu"].between(selected_weeks[0], selected_weeks[1])
+        if not df.empty and "usia_hamil_minggu" in df.columns else pd.Series(dtype=bool)
+    )
 
-    filtered = df[cond_risk & cond_week].copy()
+    filtered = df[cond_risk & cond_week].copy() if not df.empty else df.copy()
 
-    if selected_locations:
+    if selected_locations and not filtered.empty:
         filtered = filtered[filtered["alamat"].isin(selected_locations)]
-    if search.strip():
+    if search.strip() and not filtered.empty:
         query = search.strip().casefold()
         filtered = filtered[
             filtered["nama_ibu"].astype(str).str.casefold().str.contains(query, na=False)
@@ -923,14 +938,18 @@ if menu == "📊 Dashboard Monitoring":
 
     kategori_col = "kategori_risiko" if "kategori_risiko" in filtered.columns else "kategori_kspr"
     total = len(filtered)
-    counts = filtered[kategori_col].value_counts()
+    counts = filtered[kategori_col].value_counts() if not filtered.empty else pd.Series(dtype=int)
 
-    if "status_tekanan_darah" in filtered.columns:
-        urgent_bp = filtered["status_tekanan_darah"].eq("Perlu penilaian segera").sum()
-        needs_review = filtered["status_tekanan_darah"].eq("Perlu evaluasi").sum()
+    if not filtered.empty:
+        if "status_tekanan_darah" in filtered.columns:
+            urgent_bp = filtered["status_tekanan_darah"].eq("Perlu penilaian segera").sum()
+            needs_review = filtered["status_tekanan_darah"].eq("Perlu evaluasi").sum()
+        else:
+            urgent_bp = ((filtered["tekanan_darah_sistol"] >= 160) | (filtered["tekanan_darah_diastol"] >= 110)).sum()
+            needs_review = ((filtered["tekanan_darah_sistol"] >= 140) | (filtered["tekanan_darah_diastol"] >= 90)).sum() - urgent_bp
     else:
-        urgent_bp = ((filtered["tekanan_darah_sistol"] >= 160) | (filtered["tekanan_darah_diastol"] >= 110)).sum()
-        needs_review = ((filtered["tekanan_darah_sistol"] >= 140) | (filtered["tekanan_darah_diastol"] >= 90)).sum() - urgent_bp
+        urgent_bp = 0
+        needs_review = 0
 
     report_table = filtered[
         [
@@ -944,7 +963,10 @@ if menu == "📊 Dashboard Monitoring":
             "skor_poedji_rochjati",
             "kategori_kspr",
         ]
-    ].copy()
+    ].copy() if not filtered.empty else pd.DataFrame(columns=[
+        "id_ibu", "nama_ibu", "usia", "usia_hamil_minggu", "hpl_date",
+        "tekanan_darah", "status_tekanan_darah", "skor_poedji_rochjati", "kategori_kspr"
+    ])
     report_table = report_table.rename(
         columns={
             "id_ibu": "ID",
@@ -958,7 +980,8 @@ if menu == "📊 Dashboard Monitoring":
             "kategori_kspr": "Kategori",
         }
     )
-    report_table["HPL"] = report_table["HPL"].dt.strftime("%d %b %Y").fillna("-")
+    if not report_table.empty and "HPL" in report_table.columns:
+        report_table["HPL"] = report_table["HPL"].dt.strftime("%d %b %Y").fillna("-")
 
     # Waktu laporan menggunakan WIB (UTC+7)
     downloaded_at = datetime.now(WIB)
@@ -1017,13 +1040,22 @@ if menu == "📊 Dashboard Monitoring":
         delta_color="off",
     )
 
-    illness_values = filtered["riwayat_sakit"].astype("string").str.strip()
-    illness_mask = illness_values.notna() & ~illness_values.str.casefold().isin(
-        ["", "tidak ada", "belum dinilai", "-"]
-    )
-    caesarean_mask = pd.to_numeric(filtered["riwayat_caesar"], errors="coerce").eq(1)
-    combined_history_mask = illness_mask & caesarean_mask
-    combined_history_count = combined_history_mask.sum()
+    if not filtered.empty:
+        illness_values = filtered["riwayat_sakit"].astype("string").str.strip()
+        illness_mask = illness_values.notna() & ~illness_values.str.casefold().isin(
+            ["", "tidak ada", "belum dinilai", "-"]
+        )
+        caesarean_mask = pd.to_numeric(filtered["riwayat_caesar"], errors="coerce").eq(1)
+        combined_history_mask = illness_mask & caesarean_mask
+        combined_history_count = combined_history_mask.sum()
+        illness_count = illness_mask.sum()
+        caesarean_count = caesarean_mask.sum()
+    else:
+        combined_history_mask = pd.Series(dtype=bool)
+        combined_history_count = 0
+        illness_count = 0
+        caesarean_count = 0
+
     st.metric(
         "Memiliki riwayat sakit dan operasi Caesar",
         f"{combined_history_count:,}",
@@ -1031,8 +1063,8 @@ if menu == "📊 Dashboard Monitoring":
         delta_color="off",
     )
     st.caption(
-        f"Rincian: {illness_mask.sum():,} memiliki riwayat sakit · "
-        f"{caesarean_mask.sum():,} memiliki riwayat operasi Caesar. "
+        f"Rincian: {illness_count:,} memiliki riwayat sakit · "
+        f"{caesarean_count:,} memiliki riwayat operasi Caesar. "
         "Metrik menghitung ibu yang memenuhi kedua kondisi sekaligus."
     )
 
@@ -1051,9 +1083,7 @@ if menu == "📊 Dashboard Monitoring":
     chart_column, detail_column = st.columns([1, 1.5])
     with chart_column:
         risk_counts = (
-            filtered[kategori_col]
-            .value_counts()
-            .reindex(RISK_ORDER, fill_value=0)
+            counts.reindex(RISK_ORDER, fill_value=0)
             .rename_axis("Kategori")
             .to_frame("Jumlah ibu")
         )
@@ -1078,7 +1108,7 @@ if menu == "📊 Dashboard Monitoring":
     st.caption("Semua kategori ditampilkan langsung untuk memudahkan pemantauan prioritas.")
 
     # 1. Kategori KRST
-    krst_data = report_table[filtered[kategori_col].eq("KRST")]
+    krst_data = report_table[filtered[kategori_col].eq("KRST")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🔴 Kategori KRST · Risiko Sangat Tinggi ({len(krst_data):,} ibu, {filtered_percentage(len(krst_data)):.1f}%)"
     )
@@ -1089,7 +1119,7 @@ if menu == "📊 Dashboard Monitoring":
         st.dataframe(krst_data, hide_index=True, width="stretch", height=240)
 
     # 2. Kategori KRT
-    krt_data = report_table[filtered[kategori_col].eq("KRT")]
+    krt_data = report_table[filtered[kategori_col].eq("KRT")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🟡 Kategori KRT · Risiko Tinggi ({len(krt_data):,} ibu, {filtered_percentage(len(krt_data)):.1f}%)"
     )
@@ -1100,7 +1130,7 @@ if menu == "📊 Dashboard Monitoring":
         st.dataframe(krt_data, hide_index=True, width="stretch", height=240)
 
     # 3. Kategori KRR
-    krr_data = report_table[filtered[kategori_col].eq("KRR")]
+    krr_data = report_table[filtered[kategori_col].eq("KRR")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🟢 Kategori KRR · Risiko Rendah ({len(krr_data):,} ibu, {filtered_percentage(len(krr_data)):.1f}%)"
     )
@@ -1139,7 +1169,7 @@ if menu == "📊 Dashboard Monitoring":
     st.divider()
     st.subheader("Daftar Pemantauan Lengkap & Profil Pasien")
     if filtered.empty:
-        st.info("Tidak ada data yang sesuai dengan filter.")
+        st.info("Belum ada data ibu hamil yang tersimpan di sistem. Silakan tambahkan data melalui formulir 'Tambah ibu baru' di bawah.")
     else:
         patient_options = filtered.sort_values("nama_ibu")["id_ibu"].tolist()
         patient_by_id = filtered.set_index("id_ibu", drop=False)
@@ -1150,24 +1180,25 @@ if menu == "📊 Dashboard Monitoring":
                 f"{patient_by_id.at[patient_id, 'nama_ibu']} · {patient_id}"
             ),
         )
-        patient = patient_by_id.loc[selected_id]
+        if selected_id and selected_id in patient_by_id.index:
+            patient = patient_by_id.loc[selected_id]
 
-        profile_columns = st.columns(4)
-        profile_columns[0].metric("Skor KSPR", f"{int(patient['skor_poedji_rochjati'])}")
-        profile_columns[1].metric("Kategori", patient[kategori_col])
-        profile_columns[2].metric("Usia kehamilan", f"{int(patient['usia_hamil_minggu'])} minggu")
-        profile_columns[3].metric("HPL", display_date(patient["hpl_date"]))
+            profile_columns = st.columns(4)
+            profile_columns[0].metric("Skor KSPR", f"{int(patient['skor_poedji_rochjati'])}")
+            profile_columns[1].metric("Kategori", str(patient[kategori_col]))
+            profile_columns[2].metric("Usia kehamilan", f"{int(patient['usia_hamil_minggu'])} minggu")
+            profile_columns[3].metric("HPL", display_date(patient["hpl_date"]))
 
-        info_columns = st.columns(3)
-        with info_columns[0]:
-            st.markdown(f"**Ibu:** {patient['nama_ibu']} ({patient['usia']} tahun)")
-            st.markdown(f"**Wilayah:** {patient['alamat']}")
-        with info_columns[1]:
-            st.markdown(f"**Tekanan darah:** {patient['tekanan_darah']} mmHg")
-            st.markdown(f"**Status:** {patient['status_tekanan_darah']}")
-        with info_columns[2]:
-            st.markdown(f"**Riwayat kesehatan:** {patient['riwayat_sakit']}")
-            st.markdown(f"**Alergi:** {patient['alergi']}")
+            info_columns = st.columns(3)
+            with info_columns[0]:
+                st.markdown(f"**Ibu:** {patient['nama_ibu']} ({patient['usia']} tahun)")
+                st.markdown(f"**Wilayah:** {patient['alamat']}")
+            with info_columns[1]:
+                st.markdown(f"**Tekanan darah:** {patient['tekanan_darah']} mmHg")
+                st.markdown(f"**Status:** {patient['status_tekanan_darah']}")
+            with info_columns[2]:
+                st.markdown(f"**Riwayat kesehatan:** {patient['riwayat_sakit']}")
+                st.markdown(f"**Alergi:** {patient['alergi']}")
 
         st.markdown("#### Tabel Keseluruhan Ibu Hamil Terpantau")
         st.dataframe(report_table, hide_index=True, width="stretch", height=320)
@@ -1207,35 +1238,38 @@ if menu == "📊 Dashboard Monitoring":
                     st.error(f"Data belum tersimpan: {error}")
 
     with edit_tab:
-        edit_options = df.sort_values("nama_ibu")["id_ibu"].tolist()
-        edit_by_id = df.set_index("id_ibu", drop=False)
-        edit_id = st.selectbox(
-            "Pilih ibu",
-            edit_options,
-            format_func=lambda patient_id: (
-                f"{edit_by_id.at[patient_id, 'nama_ibu']} · {patient_id}"
-            ),
-            key="edit_patient_selector",
-        )
-        st.caption("ID ibu dikunci untuk menjaga keterkaitan catatan.")
-        edited_record = render_patient_fields(
-            f"edit_{edit_id}", edit_by_id.loc[edit_id]
-        )
-        update_submitted = st.button(
-            "Simpan perubahan", type="primary", key="update_patient_submit"
-        )
+        if df.empty:
+            st.info("Belum ada data ibu untuk diperbarui.")
+        else:
+            edit_options = df.sort_values("nama_ibu")["id_ibu"].tolist()
+            edit_by_id = df.set_index("id_ibu", drop=False)
+            edit_id = st.selectbox(
+                "Pilih ibu",
+                edit_options,
+                format_func=lambda patient_id: (
+                    f"{edit_by_id.at[patient_id, 'nama_ibu']} · {patient_id}"
+                ),
+                key="edit_patient_selector",
+            )
+            st.caption("ID ibu dikunci untuk menjaga keterkaitan catatan.")
+            edited_record = render_patient_fields(
+                f"edit_{edit_id}", edit_by_id.loc[edit_id]
+            )
+            update_submitted = st.button(
+                "Simpan perubahan", type="primary", key="update_patient_submit"
+            )
 
-        if update_submitted:
-            if not edited_record["nama_ibu"] or not edited_record["nik"]:
-                st.error("Nama ibu dan NIK wajib diisi.")
-            else:
-                try:
-                    save_patient(edited_record, existing_id=edit_id)
-                    load_data.clear()
-                    st.success("Perubahan data berhasil disimpan.")
-                    st.rerun()
-                except (OSError, ValueError) as error:
-                    st.error(f"Perubahan belum tersimpan: {error}")
+            if update_submitted:
+                if not edited_record["nama_ibu"] or not edited_record["nik"]:
+                    st.error("Nama ibu dan NIK wajib diisi.")
+                else:
+                    try:
+                        save_patient(edited_record, existing_id=edit_id)
+                        load_data.clear()
+                        st.success("Perubahan data berhasil disimpan.")
+                        st.rerun()
+                    except (OSError, ValueError) as error:
+                        st.error(f"Perubahan belum tersimpan: {error}")
 
 
 # =========================================================================
