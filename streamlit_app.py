@@ -454,7 +454,7 @@ def calculate_poedji_score(record):
     if age <= 16 or age >= 35:
         factors.append(("Usia ibu berisiko", 4))
     if height < 145:
-        factors.append(("Tinggi badan <145 cm", 4))
+        factors.append(("Tinggi status panggul <145 cm", 4))
     if 0 < pregnancy_gap < 2 or pregnancy_gap > 10:
         factors.append(("Jarak kehamilan berisiko", 4))
     if living_children >= 4:
@@ -655,7 +655,6 @@ def save_patient(record, existing_id=None):
 
 
 def render_patient_fields(prefix, patient=None):
-    # Konversi pasien ke dict jika berupa DataFrame atau Series agar aman
     if isinstance(patient, pd.DataFrame):
         patient = patient.iloc[0].to_dict()
     elif isinstance(patient, pd.Series):
@@ -680,7 +679,6 @@ def render_patient_fields(prefix, patient=None):
             return parsed.date()
         return default_date
 
-    # Pengaturan tanggal lahir agar tahun kelahiran bebas dipilih dari 1950 sampai hari ini
     dob_val = date_value("tanggal_lahir", date(1996, 1, 1))
     min_dob = date(1950, 1, 1)
     max_dob = date.today()
@@ -689,7 +687,6 @@ def render_patient_fields(prefix, patient=None):
     if dob_val > max_dob:
         max_dob = dob_val
 
-    # Pengaturan HPL
     hpl_val = date_value("hpl", date.today())
     min_hpl = date(2020, 1, 1)
     max_hpl = date(2035, 12, 31)
@@ -939,7 +936,6 @@ if menu == "📊 Dashboard Monitoring":
         locations = sorted(df["alamat"].dropna().unique().tolist()) if not df.empty and "alamat" in df.columns else []
         selected_locations = st.multiselect("Wilayah", locations)
 
-        # Penentuan batas slider usia kehamilan yang aman
         min_week, max_week = 4, 40
         if "usia_hamil_minggu" in df.columns:
             valid_weeks = df["usia_hamil_minggu"].dropna()
@@ -1146,13 +1142,12 @@ if menu == "📊 Dashboard Monitoring":
         )
 
     # =========================================================================
-    # RINCIAN DAFTAR IBU PER KATEGORI (TERBUKA UTUH TANPA TOGGLE)
+    # RINCIAN DAFTAR IBU PER KATEGORI (TERBUKA UTUH)
     # =========================================================================
     st.divider()
     st.subheader("Rincian Pasien Berdasarkan Kategori Risiko & Riwayat")
     st.caption("Semua kategori ditampilkan langsung untuk memudahkan pemantauan prioritas.")
 
-    # 1. Kategori KRST
     krst_data = report_table[filtered[kategori_col].eq("KRST")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🔴 Kategori KRST · Risiko Sangat Tinggi ({len(krst_data):,} ibu, {filtered_percentage(len(krst_data)):.1f}%)"
@@ -1163,7 +1158,6 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krst_data, hide_index=True, width="stretch", height=240)
 
-    # 2. Kategori KRT
     krt_data = report_table[filtered[kategori_col].eq("KRT")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🟡 Kategori KRT · Risiko Tinggi ({len(krt_data):,} ibu, {filtered_percentage(len(krt_data)):.1f}%)"
@@ -1174,7 +1168,6 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krt_data, hide_index=True, width="stretch", height=240)
 
-    # 3. Kategori KRR
     krr_data = report_table[filtered[kategori_col].eq("KRR")] if not filtered.empty else report_table
     st.markdown(
         f"#### 🟢 Kategori KRR · Risiko Rendah ({len(krr_data):,} ibu, {filtered_percentage(len(krr_data)):.1f}%)"
@@ -1185,7 +1178,6 @@ if menu == "📊 Dashboard Monitoring":
     else:
         st.dataframe(krr_data, hide_index=True, width="stretch", height=240)
 
-    # 4. Kategori Riwayat Sakit & Caesar
     if combined_history_count > 0:
         history_table = filtered.loc[
             combined_history_mask,
@@ -1381,6 +1373,16 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 key=f"eval_wilayah_{eval_session}"
             )
 
+        # FITUR BACKDATE WAKTU PENGISIAN
+        with st.expander("🕒 Atur Waktu Pengisian Khusus (Backdate)", expanded=False):
+            st.caption("Gunakan opsi ini jika Anda ingin mencatat pengisian tertanggal kegiatan lampau (misal: Sabtu kemarin).")
+            use_custom_time = st.checkbox("Gunakan tanggal & jam manual di bawah", value=False, key=f"eval_backdate_check_{eval_session}")
+            b_col1, b_col2 = st.columns(2)
+            with b_col1:
+                custom_date_val = st.date_input("Tanggal Pengisian", value=date(2026, 10, 10), format="DD/MM/YYYY", key=f"eval_custom_date_{eval_session}")
+            with b_col2:
+                custom_time_val = st.time_input("Jam Pengisian", value=datetime.strptime("09:30:00", "%H:%M:%S").time(), key=f"eval_custom_time_{eval_session}")
+
         st.markdown("---")
         st.markdown("#### Soal Evaluasi Pengetahuan")
         st.caption("Pilihlah salah satu jawaban yang paling tepat untuk masing-masing pertanyaan di bawah ini:")
@@ -1417,8 +1419,13 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 score = int((correct_count / len(EVALUATION_QUESTIONS)) * 100)
                 is_post_test = "Post-Test" in jenis_tes
 
+                if use_custom_time:
+                    record_timestamp = f"{custom_date_val.strftime('%Y-%m-%d')} {custom_time_val.strftime('%H:%M:%S')}"
+                else:
+                    record_timestamp = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
+
                 record_test = {
-                    "timestamp": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S"),
+                    "timestamp": record_timestamp,
                     "nama_kader": nama_kader.strip(),
                     "jenis_tes": "Post-Test" if is_post_test else "Pre-Test",
                     "wilayah": wilayah_kader.strip(),
@@ -1482,41 +1489,54 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
         st.subheader("Rekapitulasi Hasil Evaluasi Kader Posyandu")
         st.caption("Data hasil evaluasi tersimpan otomatis dan dapat digunakan sebagai bukti luaran Pengabdian Kepada Masyarakat (PKM).")
 
+        pre_scores = df_rekap[df_rekap["jenis_tes"] == "Pre-Test"]["skor"] if not df_rekap.empty else pd.Series(dtype=float)
+        post_scores = df_rekap[df_rekap["jenis_tes"] == "Post-Test"]["skor"] if not df_rekap.empty else pd.Series(dtype=float)
+
+        avg_pre = pre_scores.mean() if not pre_scores.empty else 0
+        avg_post = post_scores.mean() if not post_scores.empty else 0
+        peningkatan = avg_post - avg_pre if (not pre_scores.empty and not post_scores.empty) else 0
+
+        stat_cols = st.columns(4)
+        stat_cols[0].metric("Total Peserta Mengisi", f"{len(df_rekap)} catatan")
+        stat_cols[1].metric("Rata-Rata Pre-Test", f"{avg_pre:.1f}")
+        stat_cols[2].metric("Rata-Rata Post-Test", f"{avg_post:.1f}")
+        stat_cols[3].metric("Kenaikan Skor Rata-rata", f"{peningkatan:+.1f} poin")
+
+        st.markdown("#### Tabel Data Lengkap Responden (Bisa Diedit Langsung)")
+        st.caption("💡 Anda dapat mengubah langsung sel teks, waktu, jenis tes, atau skor pada tabel di bawah layaknya di Excel, lalu klik tombol **Simpan Perubahan Tabel**.")
+
+        # FITUR TABEL EDITABLE LANGSUNG (st.data_editor)
         if df_rekap.empty:
-            st.info("Belum ada data evaluasi yang masuk. Silakan isi kuesioner pada tab lembar kuesioner.")
-        else:
-            pre_scores = df_rekap[df_rekap["jenis_tes"] == "Pre-Test"]["skor"]
-            post_scores = df_rekap[df_rekap["jenis_tes"] == "Post-Test"]["skor"]
+            df_rekap = pd.DataFrame(columns=[
+                "timestamp", "nama_kader", "jenis_tes", "wilayah",
+                "skor", "jumlah_benar", "jawaban_1", "jawaban_2",
+                "jawaban_3", "jawaban_4", "jawaban_5"
+            ])
 
-            avg_pre = pre_scores.mean() if not pre_scores.empty else 0
-            avg_post = post_scores.mean() if not post_scores.empty else 0
-            peningkatan = avg_post - avg_pre if (not pre_scores.empty and not post_scores.empty) else 0
+        edited_df = st.data_editor(
+            df_rekap,
+            num_rows="dynamic",
+            use_container_width=True,
+            column_config={
+                "timestamp": st.column_config.TextColumn("Waktu (YYYY-MM-DD HH:MM:SS)"),
+                "nama_kader": st.column_config.TextColumn("Nama Kader"),
+                "jenis_tes": st.column_config.SelectboxColumn("Jenis Tes", options=["Pre-Test", "Post-Test"]),
+                "wilayah": st.column_config.TextColumn("Wilayah"),
+                "skor": st.column_config.NumberColumn("Skor", min_value=0, max_value=100),
+                "jumlah_benar": st.column_config.NumberColumn("Benar", min_value=0, max_value=5),
+            },
+            key="rekap_data_editor"
+        )
 
-            stat_cols = st.columns(4)
-            stat_cols[0].metric("Total Peserta Mengisi", f"{len(df_rekap)} catatan")
-            stat_cols[1].metric("Rata-Rata Pre-Test", f"{avg_pre:.1f}")
-            stat_cols[2].metric("Rata-Rata Post-Test", f"{avg_post:.1f}")
-            stat_cols[3].metric("Kenaikan Skor Rata-rata", f"{peningkatan:+.1f} poin")
+        col_save, col_dl = st.columns([1, 1])
+        with col_save:
+            if st.button("💾 Simpan Perubahan Tabel", type="primary", use_container_width=True):
+                edited_df.to_csv(EVAL_FILE, index=False)
+                st.success("Tabel rekapitulasi evaluasi berhasil diperbarui dan disimpan.")
+                st.rerun()
 
-            st.markdown("#### Tabel Data Lengkap Responden")
-            display_rekap = df_rekap.rename(
-                columns={
-                    "timestamp": "Waktu",
-                    "nama_kader": "Nama Kader",
-                    "jenis_tes": "Jenis Tes",
-                    "wilayah": "Posyandu/Wilayah",
-                    "skor": "Skor",
-                    "jumlah_benar": "Benar",
-                    "jawaban_1": "Q1",
-                    "jawaban_2": "Q2",
-                    "jawaban_3": "Q3",
-                    "jawaban_4": "Q4",
-                    "jawaban_5": "Q5",
-                }
-            )
-            st.dataframe(display_rekap, hide_index=True, width="stretch")
-
-            csv_data = df_rekap.to_csv(index=False).encode("utf-8-sig")
+        with col_dl:
+            csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
             st.download_button(
                 "📥 Unduh Rekap Nilai Evaluasi (CSV)",
                 data=csv_data,
@@ -1525,15 +1545,15 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 use_container_width=True
             )
 
-            # --- MENU HAPUS / RESET DATA EVALUASI ---
-            st.markdown("---")
-            with st.expander("🗑️ Pengaturan / Hapus Data Evaluasi"):
-                st.caption("Gunakan menu ini jika ingin membersihkan data percobaan sebelum kegiatan resmi dimulai.")
-                confirm_del = st.checkbox("Saya yakin ingin mengosongkan / menghapus semua catatan evaluasi di atas.")
-                if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
-                    if EVAL_FILE.exists():
-                        EVAL_FILE.unlink()
-                    if "eval_result" in st.session_state:
-                        del st.session_state["eval_result"]
-                    st.success("Seluruh data evaluasi berhasil dihapus.")
-                    st.rerun()
+        # --- MENU HAPUS / RESET DATA EVALUASI ---
+        st.markdown("---")
+        with st.expander("🗑️ Pengaturan / Hapus Data Evaluasi"):
+            st.caption("Gunakan menu ini jika ingin membersihkan data percobaan sebelum kegiatan resmi dimulai.")
+            confirm_del = st.checkbox("Saya yakin ingin mengosongkan / menghapus semua catatan evaluasi di atas.")
+            if st.button("Hapus Semua Data Evaluasi", type="secondary", disabled=not confirm_del):
+                if EVAL_FILE.exists():
+                    EVAL_FILE.unlink()
+                if "eval_result" in st.session_state:
+                    del st.session_state["eval_result"]
+                st.success("Seluruh data evaluasi berhasil dihapus.")
+                st.rerun()
