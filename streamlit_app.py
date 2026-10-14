@@ -402,7 +402,6 @@ def load_data():
         if column not in df.columns:
             df[column] = "Belum dinilai"
 
-    # Bersihkan baris kosong (ghost rows yang tidak memiliki id_ibu valid)
     if not df.empty and "id_ibu" in df.columns:
         valid_mask = (
             df["id_ibu"].astype(str).str.strip().ne("")
@@ -1502,41 +1501,27 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
         stat_cols[2].metric("Rata-Rata Post-Test", f"{avg_post:.1f}")
         stat_cols[3].metric("Kenaikan Skor Rata-rata", f"{peningkatan:+.1f} poin")
 
-        st.markdown("#### Tabel Data Lengkap Responden (Bisa Diedit Langsung)")
-        st.caption("💡 Anda dapat mengubah langsung sel teks, waktu, jenis tes, atau skor pada tabel di bawah layaknya di Excel, lalu klik tombol **Simpan Perubahan Tabel**.")
+        st.markdown("#### Tabel Data Lengkap Responden")
 
-        # FITUR TABEL EDITABLE LANGSUNG (st.data_editor)
-        if df_rekap.empty:
-            df_rekap = pd.DataFrame(columns=[
-                "timestamp", "nama_kader", "jenis_tes", "wilayah",
-                "skor", "jumlah_benar", "jawaban_1", "jawaban_2",
-                "jawaban_3", "jawaban_4", "jawaban_5"
-            ])
+        if not df_rekap.empty:
+            display_rekap = df_rekap.rename(
+                columns={
+                    "timestamp": "Waktu",
+                    "nama_kader": "Nama Kader",
+                    "jenis_tes": "Jenis Tes",
+                    "wilayah": "Posyandu/Wilayah",
+                    "skor": "Skor",
+                    "jumlah_benar": "Benar",
+                    "jawaban_1": "Q1",
+                    "jawaban_2": "Q2",
+                    "jawaban_3": "Q3",
+                    "jawaban_4": "Q4",
+                    "jawaban_5": "Q5",
+                }
+            )
+            st.dataframe(display_rekap, hide_index=True, width="stretch")
 
-        edited_df = st.data_editor(
-            df_rekap,
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "timestamp": st.column_config.TextColumn("Waktu (YYYY-MM-DD HH:MM:SS)"),
-                "nama_kader": st.column_config.TextColumn("Nama Kader"),
-                "jenis_tes": st.column_config.SelectboxColumn("Jenis Tes", options=["Pre-Test", "Post-Test"]),
-                "wilayah": st.column_config.TextColumn("Wilayah"),
-                "skor": st.column_config.NumberColumn("Skor", min_value=0, max_value=100),
-                "jumlah_benar": st.column_config.NumberColumn("Benar", min_value=0, max_value=5),
-            },
-            key="rekap_data_editor"
-        )
-
-        col_save, col_dl = st.columns([1, 1])
-        with col_save:
-            if st.button("💾 Simpan Perubahan Tabel", type="primary", use_container_width=True):
-                edited_df.to_csv(EVAL_FILE, index=False)
-                st.success("Tabel rekapitulasi evaluasi berhasil diperbarui dan disimpan.")
-                st.rerun()
-
-        with col_dl:
-            csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
+            csv_data = df_rekap.to_csv(index=False).encode("utf-8-sig")
             st.download_button(
                 "📥 Unduh Rekap Nilai Evaluasi (CSV)",
                 data=csv_data,
@@ -1544,6 +1529,8 @@ elif menu == "📝 Evaluasi Kader (Pre/Post Test)":
                 mime="text/csv",
                 use_container_width=True
             )
+        else:
+            st.info("Belum ada data evaluasi yang masuk. Silakan isi kuesioner pada tab lembar kuesioner.")
 
         # --- MENU HAPUS / RESET DATA EVALUASI ---
         st.markdown("---")
